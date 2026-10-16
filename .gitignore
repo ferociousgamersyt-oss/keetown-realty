@@ -1,0 +1,7 @@
+# build output (regenerate with: python3 build.py --dist)
+dist/
+# tool caches
+.wrangler/
+node_modules/
+.DS_Store
+.claude/

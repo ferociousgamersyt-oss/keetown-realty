@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login or Register — Keetown Realty</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('motion')</script>
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body class="auth-body">
+<header class="nav solid">
+  <a class="logo" href="index.html"><img class="logo-img" src="assets/brand/logo.svg" alt="Keetown Realty" width="139" height="56"></a>
+  <nav class="nav-links open-static"><a href="index.html">← Continue browsing without login</a><a class="btn btn-wa sm" data-wa="Hi Keetown Realty, I need help.">WhatsApp us</a></nav>
+</header>
+
+<main class="auth-wrap">
+  <aside class="auth-side">
+    <h1>One account for every property conversation.</h1>
+    <p>Browsing Keetown Realty is always free — no login needed. Register only when you want to list a property, save your shortlist, or get alerts for your area and budget.</p>
+    <ul class="why-list">
+      <li><b>Verified parties only</b>Tenants, owners and sellers are identity-verified through DigiLocker, so every enquiry is genuine.</li>
+      <li><b>Simple, secure sign-in</b>Mobile number and a one-time password. No passwords to remember.</li>
+      <li><b>Updates only if you ask</b>WhatsApp or email alerts are strictly opt-in, and you can stop them any time.</li>
+    </ul>
+    <p class="demo-note" id="demoNote"></p>
+    <div class="demo-acc" id="demoAccounts" hidden></div>
+  </aside>
+
+  <section class="auth-card" aria-live="polite">
+    <ol class="stepper" id="stepper"><li>Client type</li><li>Mobile</li><li>OTP</li><li>Your details</li><li>Updates</li><li>Verify</li></ol>
+
+    <!-- 1 role -->
+    <div class="step" data-step="0">
+      <h2>How would you like to use Keetown?</h2>
+      <p class="sub">Choose the option that fits you best.</p>
+      <div class="roles" id="roles"></div>
+    </div>
+
+    <!-- 2 mobile -->
+    <div class="step" data-step="1" hidden>
+      <h2>Enter your mobile number</h2>
+      <p class="sub">We’ll send a 6-digit OTP by SMS. Registering as <b id="roleName"></b>.</p>
+      <label class="fl">Mobile number
+        <div class="phone-in"><span>+91</span><input id="mobile" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="98XXXXXXXX"></div>
+      </label>
+      <p class="err" id="mErr" role="alert"></p>
+      <div class="nav-btns"><button class="btn btn-line" data-back>Back</button><button class="btn btn-gold" id="sendOtp">Send OTP</button></div>
+    </div>
+
+    <!-- 3 otp -->
+    <div class="step" data-step="2" hidden>
+      <h2>Enter the OTP</h2>
+      <p class="sub">Sent to +91 <b id="otpTo"></b>. <button class="link" id="chgNum">Change number</button></p>
+      <div class="otp" id="otp">
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 1"><input inputmode="numeric" maxlength="1" aria-label="OTP digit 2"><input inputmode="numeric" maxlength="1" aria-label="OTP digit 3"><input inputmode="numeric" maxlength="1" aria-label="OTP digit 4"><input inputmode="numeric" maxlength="1" aria-label="OTP digit 5"><input inputmode="numeric" maxlength="1" aria-label="OTP digit 6">
+      </div>
+      <p class="err" id="oErr" role="alert"></p>
+      <p class="fine"><button class="link" id="resend" disabled>Resend OTP</button> <span id="timer"></span></p>
+      <div class="nav-btns"><button class="btn btn-line" data-back>Back</button><button class="btn btn-gold" id="verifyOtp">Verify &amp; continue</button></div>
+    </div>
+
+    <!-- 4 profile -->
+    <div class="step" data-step="3" hidden>
+      <h2 id="pTitle">Tell us what you need</h2>
+      <p class="sub" id="pSub"></p>
+      <form id="profileForm" class="pf" novalidate></form>
+      <div class="nav-btns"><button class="btn btn-line" data-back>Back</button><button class="btn btn-gold" id="saveProfile">Continue</button></div>
+    </div>
+
+    <!-- 5 consent -->
+    <div class="step" data-step="4" hidden>
+      <h2>Stay updated — only if you want</h2>
+      <p class="sub">Get matching properties and market updates for your requirement. This is optional and you can continue without it.</p>
+      <div class="consent">
+        <label class="chk"><input type="checkbox" id="cWa"><span><b>WhatsApp updates</b> on my mobile number</span></label>
+        <label class="chk"><input type="checkbox" id="cMail"><span><b>Email updates</b></span></label>
+        <label class="fl" id="mailBox" hidden>Email address<input type="email" id="email" autocomplete="email" placeholder="you@example.com"></label>
+        <p class="fine">By ticking, I consent to Keetown Realty contacting me with property alerts and market updates matching my requirement. I can withdraw consent at any time from my portal settings or by replying STOP. Keetown will not share my details with third parties for their marketing.</p>
+      </div>
+      <label class="chk req"><input type="checkbox" id="cTerms"><span>I agree to the <a href="#" onclick="return false">Terms</a> and <a href="#" onclick="return false">Privacy Notice</a> for creating this account.</span></label>
+      <p class="err" id="cErr" role="alert"></p>
+      <div class="nav-btns"><button class="btn btn-line" data-back>Back</button><button class="btn btn-gold" id="saveConsent">Continue</button></div>
+    </div>
+
+    <!-- 6 verify -->
+    <div class="step" data-step="5" hidden>
+      <h2 id="vTitle">Verify your identity</h2>
+      <p class="sub" id="vSub"></p>
+      <div class="dl-card">
+        <div class="dl-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></div>
+        <div>
+          <b>Verify with DigiLocker</b>
+          <ul>
+            <li>You’ll sign in on DigiLocker’s own website and approve what you share.</li>
+            <li>We receive only your verified name and the fields you authorise.</li>
+            <li>Keetown does not store your Aadhaar number or documents — only the verification status.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="demo-box" id="demoBox" hidden>
+        <b>Demo mode</b>
+        <p>This build isn’t connected to DigiLocker yet, so verification is simulated and will be shown as “Demo-verified”. In production this button redirects to DigiLocker (see BACKEND.md).</p>
+        <label class="fl">Name as it appears on your ID<input id="dlName" autocomplete="name"></label>
+      </div>
+      <p class="err" id="vErr" role="alert"></p>
+      <div class="nav-btns"><button class="btn btn-line" id="skipVerify">Do it later</button><button class="btn btn-gold" id="doVerify">Verify with DigiLocker</button></div>
+      <p class="fine" id="skipNote"></p>
+    </div>
+  </section>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/track.js"></script>
+<script src="js/forms.js"></script>
+<script src="js/login.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Keetown OS — Team workspace</title>
+<link rel="icon" href="../assets/brand/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="os.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side">
+    <a class="brand" href="../index.html" title="Open public site"><img src="../assets/brand/mark-white.svg" alt="" width="20" height="33"><span>Keetown <b>OS</b></span></a>
+    <nav id="nav"></nav>
+    <div class="side-foot"><button class="ghost" id="cmdBtn">⌘K Command</button><a class="ghost" href="../index.html">← Public site</a></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="burger" id="burger" aria-label="Menu">☰</button>
+      <h1 id="viewTitle">Today</h1>
+      <div class="top-r"><span class="clock" id="clock"></span><button class="ghost" id="resetBtn" title="Clear all workspace data">Reset demo data</button></div>
+    </header>
+    <main id="view" tabindex="-1"></main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<dialog id="cmd" class="cmd"><input id="cmdIn" placeholder="Jump to… (type a view or action)" autocomplete="off"><ul id="cmdList"></ul></dialog>
+<dialog id="dlg" class="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<script src="../js/data.js"></script>
+<script src="os.js"></script>
+</body>
+</html>

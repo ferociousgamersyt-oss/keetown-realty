@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keetown Trust Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#06121f;color:#e6eef8;font:15px Inter,system-ui,sans-serif;display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:32px;padding:28px;min-height:100vh;box-sizing:border-box}
+canvas{width:100%;aspect-ratio:9/16;border-radius:16px;background:#0b2340;box-shadow:0 30px 80px -30px #000;display:block}
+.ctl{display:grid;gap:14px;align-content:start;max-width:520px}
+h1{font-size:1.4rem;margin:0}p{margin:0;color:#9fb4cc;line-height:1.55}
+button,a.b{padding:11px 18px;border-radius:8px;border:0;background:#e9c27f;color:#0b2340;font-weight:700;cursor:pointer;font:inherit;font-weight:700;text-decoration:none;text-align:center}
+button.s{background:#14365e;color:#fff}
+.row{display:flex;gap:10px;flex-wrap:wrap}input[type=range]{width:100%}
+#st{font-family:ui-monospace,monospace;color:#e9c27f}
+@media(max-width:800px){body{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<canvas id="cv" width="1080" height="1920"></canvas>
+<div class="ctl">
+  <h1>Keetown Realty — Trust Reel</h1>
+  <p>41-second vertical motion-graphics video (1080×1920, 9:16) for Instagram Reels, YouTube Shorts, Facebook Reels and WhatsApp Status. Scenes: hook → 3 trust pillars → investors → tenants → property management → comparison → call to action.</p>
+  <div class="row"><button id="play">Play</button><button class="s" id="restart">Restart</button><button class="s" id="exp">Export video (WebM)</button></div>
+  <input type="range" id="scrub" min="0" max="41" step="0.01" value="0" aria-label="Timeline">
+  <div id="st">0.0s</div>
+  <p id="note">Export plays the video once in real time and saves a .webm file (no audio). For Instagram, convert to MP4 (e.g. with HandBrake or <code>ffmpeg -i keetown-reel.webm -c:v libx264 -pix_fmt yuv420p keetown-reel.mp4</code>) or upload the WebM to CapCut/Canva to add music and captions.</p>
+  <a class="b" href="ads.html">Open static ad creatives →</a>
+</div>
+<script src="../js/data.js"></script>
+<script src="brand.js"></script>
+<script src="engine.js"></script>
+<script src="posters.js"></script>
+<script src="reel-scenes.js"></script>
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), K = KP;
+let t = 0, playing = false, last = 0, rec = null;
+const scrub = document.getElementById('scrub'), st = document.getElementById('st');
+const draw = () => { K.drawReel(ctx, t); st.textContent = t.toFixed(1) + 's / ' + K.DUR + 's'; scrub.value = t; };
+function loop(ts) { if (playing) { t += (ts - last) / 1000; if (t >= K.DUR) { t = K.DUR; playing = false; document.getElementById('play').textContent = 'Play'; if (rec) { rec.stop(); } } draw(); } last = ts; requestAnimationFrame(loop); }
+document.getElementById('play').onclick = e => { if (t >= K.DUR) t = 0; playing = !playing; e.target.textContent = playing ? 'Pause' : 'Play'; };
+document.getElementById('restart').onclick = () => { t = 0; draw(); };
+scrub.oninput = () => { t = +scrub.value; draw(); };
+document.getElementById('exp').onclick = () => {
+  if (!window.MediaRecorder) return alert('Your browser can’t record canvas video. Use Chrome or Edge.');
+  const chunks = [], stream = cv.captureStream(30), mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })); a.download = 'keetown-reel.webm'; a.click(); rec = null; document.getElementById('exp').textContent = 'Export video (WebM)'; };
+  t = 0; draw(); rec.start(); playing = true; document.getElementById('play').textContent = 'Pause'; document.getElementById('exp').textContent = 'Recording…';
+};
+Promise.all([KBrand.ready, document.fonts.load('700 40px Inter')]).then(draw, draw);
+draw(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

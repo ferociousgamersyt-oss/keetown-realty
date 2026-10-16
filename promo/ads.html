@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keetown Ad Creatives</title>
+<link rel="icon" href="../assets/brand/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0f2147;--blue:#3669b2;--tint:#e9f0fa;--mist:#4f6286;--line:#d6e0ef;--bg:#f4f7fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:18px max(20px,calc((100% - 1200px)/2));display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:1.2rem;letter-spacing:-.01em}header nav{display:flex;gap:18px}header a{color:var(--blue);font-weight:600;text-decoration:none}
+main{width:min(1200px,100% - 40px);margin:28px auto 80px}
+h2{margin:40px 0 4px;font-size:1.2rem;letter-spacing:-.01em}p.s{color:var(--mist);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px;align-items:start}
+.item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;transition:box-shadow .2s,transform .2s}
+.item:hover{box-shadow:0 20px 40px -24px rgba(11,27,58,.35);transform:translateY(-2px)}
+.item canvas{width:100%;height:auto;border-radius:8px;display:block;background:#fff}
+.item .m{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:.84rem;gap:8px;flex-wrap:wrap}
+.item .m span{color:var(--mist)}
+.btns{display:flex;gap:6px}
+button,.b{padding:7px 12px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:#fff;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none}
+button.l,.b.l{background:#fff;color:var(--ink)}
+.pano{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+.pano canvas{width:100%;height:auto;border-radius:8px;display:block}
+.slices{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.cap{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.cap h3{margin:0 0 8px;font-size:1rem;display:flex;justify-content:space-between;align-items:center}
+.cap pre{margin:0;white-space:pre-wrap;font:inherit;color:#33445a}
+.note{padding:14px 16px;border-radius:10px;background:var(--tint);color:#1e3a8a;font-size:.9rem}
+.hint{font-size:.8rem;color:var(--mist)}
+</style>
+</head>
+<body>
+<header><h1 style="display:flex;align-items:center;gap:14px"><img src="../assets/brand/logo.svg" alt="Keetown Realty" height="40"> Ad creatives</h1><nav><a href="reel.html">Motion video</a><a href="../index.html">Website</a></nav></header>
+<main>
+  <p class="note"><b>Before posting:</b> replace the placeholder phone and RERA number in <code>js/data.js</code>, then re-export. Hover any poster to play its 8-second animation. MP4 files live in <code>promo/out/ads/</code>.</p>
+  <h2>Feed posts · 1080×1350</h2><p class="s">Instagram, Facebook and LinkedIn feeds.</p><div class="grid" id="gFeed"></div>
+  <h2>Stories &amp; Status · 1080×1920</h2><p class="s">Instagram / Facebook Stories, Reels covers, WhatsApp Status.</p><div class="grid" id="gStory"></div>
+  <h2>Square · 1080×1080</h2><p class="s">Google Business, Facebook, WhatsApp broadcasts.</p><div class="grid" id="gSq"></div>
+  <h2>Panoramic carousel · 5 × 1080×1350</h2><p class="s">One continuous design: the skyline and route line flow across all five slides when swiped.</p>
+  <div class="pano"><canvas id="pano"></canvas><div class="slices" id="slices"></div></div>
+  <h2>Captions</h2><div id="caps"></div>
+</main>
+<script src="../js/data.js"></script>
+<script src="brand.js"></script>
+<script src="engine.js"></script>
+<script src="posters.js"></script>
+<script>
+const A = KAds;
+const groups = { gFeed: ['trust-feed', 'manage-feed'], gStory: ['story-trust', 'story-manage'], gSq: ['square-rent', 'square-invest'] };
+const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); };
+
+function build() {
+  Object.entries(groups).forEach(([gid, ids]) => ids.forEach(id => {
+    const d = A.P[id], el = document.createElement('div'); el.className = 'item';
+    el.innerHTML = `<canvas></canvas><div class="m"><span>${id} · ${d.W}×${d.H}</span><div class="btns"><button class="l" data-png>PNG</button><a class="b" href="out/ads/keetown-${id}.mp4" download>MP4</a></div></div>`;
+    document.getElementById(gid).append(el);
+    const cv = el.querySelector('canvas'); A.render(cv, id, A.STILL);
+    let raf = 0, t0 = 0;
+    const loop = ts => { if (!t0) t0 = ts; const t = ((ts - t0) / 1000) % A.DUR; A.render(cv, id, t); raf = requestAnimationFrame(loop); };
+    el.addEventListener('mouseenter', () => { t0 = 0; raf = requestAnimationFrame(loop); });
+    el.addEventListener('mouseleave', () => { cancelAnimationFrame(raf); A.render(cv, id, A.STILL); });
+    el.querySelector('[data-png]').onclick = () => A.render(document.createElement('canvas'), id, A.STILL).toBlob(b => save(b, `keetown-${id}.png`));
+  }));
+  const pano = document.getElementById('pano'); A.render(pano, 'carousel', A.STILL);
+  for (let i = 0; i < 5; i++) { const b = document.createElement('button'); b.className = 'l'; b.textContent = `Slide ${i + 1} PNG`; b.onclick = () => slice(i).toBlob(bl => save(bl, `keetown-carousel-${i + 1}.png`)); document.getElementById('slices').append(b); }
+}
+function slice(i) { const src = A.render(document.createElement('canvas'), 'carousel', A.STILL), c = document.createElement('canvas'); c.width = 1080; c.height = 1350; c.getContext('2d').drawImage(src, i * 1080, 0, 1080, 1350, 0, 0, 1080, 1350); return c; }
+
+/* Export hooks used by the local render server (PUT into promo/out/). */
+const put = (path, blob) => fetch(path, { method: 'PUT', body: blob }).then(r => { if (!r.ok) throw new Error(r.status); });
+const toBlob = (cv, type, q) => new Promise(r => cv.toBlob(r, type, q));
+window.exportStills = async () => {
+  for (const id of Object.values(groups).flat()) await put(`/promo/out/ads/keetown-${id}.png`, await toBlob(A.render(document.createElement('canvas'), id, A.STILL), 'image/png'));
+  for (let i = 0; i < 5; i++) await put(`/promo/out/ads/keetown-carousel-${i + 1}.png`, await toBlob(slice(i), 'image/png'));
+  return 'stills done';
+};
+window.exportFrames = async (id, fps = 30) => {
+  const cv = document.createElement('canvas'), n = Math.round(A.DUR * fps);
+  for (let f = 0; f < n; f++) { A.render(cv, id, f / fps); await put(`/promo/out/frames/${id}/f${String(f).padStart(4, '0')}.jpg`, await toBlob(cv, 'image/jpeg', .94)); window.__prog = id + ' ' + f + '/' + n; }
+  return id + ' frames done';
+};
+
+const P = KT.brand.phoneDisplay;
+const caps = [
+  ['Instagram / Facebook', `Buying, renting or owning in Hyderabad? Here’s why people trust Keetown Realty 👇\n\n✅ Tenants, owners & sellers verified through DigiLocker\n✅ RERA, HMDA/DTCP & title checks before any token\n✅ Registration (~6%) and every cost planned upfront\n✅ Property management built for Hyderabad: monsoon audits, bills, GHMC tax, monthly statements\n\nBrowse free, no login needed. Message us on WhatsApp: ${P}\n\n#Hyderabad #HyderabadRealEstate #HyderabadProperty #Kokapet #Gachibowli #Kondapur #RERA #PropertyManagement #NRIHyderabad #KeetownRealty`],
+  ['LinkedIn', `Investing in Hyderabad from abroad, or managing property across cities?\n\nThree things we hold ourselves to at Keetown Realty:\n1. Every lister is identity-verified (DigiLocker).\n2. Legal diligence (RERA, HMDA/DTCP, title, EC) happens before token money moves.\n3. Property management that plans for Hyderabad’s monsoon, utilities and local tax cycle, with a monthly statement your CA can use.\n\nMessage us for a free property audit.\n\n#Hyderabad #RealEstate #NRI #PropertyManagement`],
+  ['WhatsApp Status / broadcast', `*Keetown Realty, Hyderabad*\nVerified homes to buy & rent. Property management for owners & NRIs.\nBrowse free; verify only to list. 📲 ${P}`],
+  ['Google Business post', `Verified listings, legal-first checks and full property management for Hyderabad owners and NRIs. Message us on WhatsApp for a free property audit. ${P}`]
+];
+document.getElementById('caps').innerHTML = caps.map(c => `<div class="cap"><h3>${c[0]}<button class="l">Copy</button></h3><pre></pre></div>`).join('');
+document.querySelectorAll('.cap').forEach((el, i) => { el.querySelector('pre').textContent = caps[i][1]; el.querySelector('button').onclick = () => navigator.clipboard.writeText(caps[i][1]); });
+Promise.all([KBrand.ready, ...['800 40px Inter', '700 40px Inter', '600 40px Inter', '500 40px Inter'].map(f => document.fonts.load(f))]).then(build, build);
+</script>
+</body>
+</html>
