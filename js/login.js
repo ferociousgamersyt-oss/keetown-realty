@@ -11,7 +11,7 @@
   };
   if (A.MODE === 'demo') $('#demoNote').textContent = 'Demo mode: no SMS is sent — use OTP ' + A.DEMO_OTP + '. DigiLocker verification is simulated.';
   // one-click demo logins, one per portal
-  if (A.MODE === 'demo' && A.DEMO_LIST) {
+  if (A.DEMO_LIST) {
     const box = $('#demoAccounts'), LBL = { tenant: 'Rental tenant', owner: 'Rental owner', buyer: 'Buyer', seller: 'Seller', builder: 'Builder' };
     box.hidden = false;
     box.innerHTML = `<p class="da-h">Try a demo account</p><p class="da-s">Each opens a portal with sample data. OTP for all: <b>${A.DEMO_OTP}</b></p>
@@ -23,7 +23,7 @@
       window.KTTrack && KTTrack.event('demo_login', { role: A.users()[b.dataset.demo].role });
       location.href = 'portal.html';
     });
-    $('#demoReset').onclick = () => { if (!confirm('Reset all demo accounts to their starting data in this browser?')) return; A.resetDemo(); $('#demoReset').textContent = 'Demo accounts reset ✓'; };
+    $('#demoReset').onclick = () => { if (!confirm('Reset all demo accounts to their starting data?')) return; Promise.resolve(A.resetDemo()).then(() => $('#demoReset').textContent = 'Demo accounts reset ✓'); };
   }
 
   /* ---------- step control ---------- */

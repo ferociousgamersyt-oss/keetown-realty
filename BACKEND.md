@@ -1,8 +1,10 @@
 # Going live and scaling
 
-The front end is complete and runs in **demo mode** (browser storage, simulated OTP and DigiLocker).
-To operate as a real portal you need a backend. This document lists what to build, in priority order.
-Set `MODE = 'live'` in `js/auth.js` once the auth endpoints exist.
+**Built and live:** Cloudflare Pages Functions + D1 (see README → Backend): server-side OTP and sessions,
+shared records with server-enforced access rules, DigiLocker OAuth flow, leads inbox for staff.
+**Waiting on your accounts:** SMS provider keys, DigiLocker partner approval.
+**Still to build:** scheduled jobs (§4, needs a separate Cloudflare Worker with a cron trigger), WhatsApp Business
+templates, email, staff roles/admin queue, file uploads (R2), and a server-side listings database (§3).
 
 ## 1. Identity: mobile OTP + DigiLocker
 - `POST /api/otp/send { mobile }` — SMS gateway (MSG91 / Gupshup / Twilio) with DLT-registered sender ID and OTP template. Rate-limit per number and IP; 5-minute expiry; 5 attempts.

@@ -37,8 +37,26 @@ python3 -m http.server 5173   # serve locally → http://localhost:5173
 Owner and tenant see the **same tenancy record**, linked by the tenant's mobile number.
 Matching (`js/match.js`): hard rules (intent, type, ≤10% over budget, bedrooms, tenant-type and pet rules) + weighted score (location & distance, budget, configuration, furnishing, move-in/possession, commute, listing quality). Prime = verified + prime listings scoring ≥ 60.
 
-## Demo mode
-`js/auth.js` → `MODE = 'demo'`: OTP is `123456`, DigiLocker is simulated ("Demo-verified"), all data lives in this browser's localStorage. Portal tabs offer "Explore with sample data". See `BACKEND.md` to go live.
+## Backend (live on the deployed site)
+Cloudflare Pages Functions (`functions/api/[[path]].js`) + D1 database `keetown` (`schema.sql`), configured in `wrangler.toml`.
+- Login: server-side mobile OTP, HttpOnly session cookie (30 days), rate limits (5 OTPs/hour per number, 20 per IP).
+- Data: accounts, tenancies (rent ledger, payments, issues, notices), purchases, listings submitted, shortlists, visits and saved searches are stored on the server, so they work across devices. Owner and tenant share one tenancy record.
+- Access rules are enforced on the server: you can only read and change records you are part of; verification status can only be set by DigiLocker; anyone can create a lead but only staff can read them.
+- `js/auth.js` keeps localStorage as a cache: writes go to an outbox → `/api/sync`; each page load refreshes from `/api/state`.
+- Keetown OS (`os/`) shows the live leads inbox to staff mobiles listed in `STAFF_MOBILES`.
+- Demo accounts (`DEMO_ACCOUNTS = "1"`): the five numbers 9000000001–5 log in with OTP 123456 and only ever see demo data.
+
+Locally (`python3 -m http.server`) everything runs in browser-only demo mode. To run with the backend locally: `wrangler pages dev . --d1 DB=keetown`.
+
+### Switching on the real services
+| Service | What you need | Then run |
+|---|---|---|
+| SMS OTP (choose one) | **Twilio Verify** (fastest; uses Twilio's own India DLT templates) or **MSG91** (cheapest; needs your DLT registration + OTP template) | `wrangler pages secret put TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_VERIFY_SID` — or `MSG91_AUTHKEY` / `MSG91_TEMPLATE_ID` (project `keetown-realty`) |
+| DigiLocker | Partner onboarding via API Setu / MeriPehchaan (business PAN, GST, use-case approval) | set `DIGILOCKER_CLIENT_ID` in `wrangler.toml`, `wrangler pages secret put DIGILOCKER_CLIENT_SECRET`; register redirect `https://keetown-realty.pages.dev/api/digilocker/callback` |
+| Staff inbox | Your team's mobile numbers | put them in `STAFF_MOBILES` in `wrangler.toml` and redeploy |
+
+Until an SMS provider is set, real numbers get a "SMS login is being set up — message us on WhatsApp" message. Staff numbers can still sign in: their code is written to the function log (`wrangler pages deployment tail --project-name keetown-realty`).
+Check status any time: https://keetown-realty.pages.dev/api/health
 
 ## Before launch
 - Replace placeholders in `data/catalog.json`: phone, email, RERA agent no., site URL, real listings, verified locality figures. Run `python3 build.py`.
@@ -59,6 +77,6 @@ python3 build.py --dist
 wrangler pages deploy dist --project-name keetown-realty --branch main
 ```
 
-`dist/` contains only public files: the team workspace (`os/`), promo tools/videos, `data/`, `build.py` and these notes are excluded.
+`dist/` contains only public files (`data/`, `build.py`, the backend source and these notes are excluded); `wrangler pages deploy` bundles `functions/` from the project root.
 Search engines are blocked while `"indexing": false` in `data/catalog.json` (sets `robots.txt` + `X-Robots-Tag`). Set it to `true` once real phone/RERA/listings are in, then redeploy.
 Custom domain: Cloudflare dashboard → Workers & Pages → keetown-realty → Custom domains; then set `brand.site` in `data/catalog.json` and redeploy.

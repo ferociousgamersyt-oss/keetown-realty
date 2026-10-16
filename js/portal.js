@@ -17,6 +17,10 @@
   // merge a guest shortlist into the account
   (function () { const g = A.read('keetown_guest', { saved: [] }); if (g.saved && g.saved.length) { const s = store(); s.saved = [...new Set([...(s.saved || []), ...g.saved])]; putStore(s); A.write('keetown_guest', { saved: [] }); } })();
   const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
+  (function () {   // back from DigiLocker
+    const q = new URLSearchParams(location.search).get('dl'); if (!q) return; history.replaceState(null, '', location.pathname + location.hash);
+    setTimeout(() => toast({ ok: 'Verified with DigiLocker — prime matches unlocked', cancelled: 'DigiLocker was cancelled. You can verify any time.', failed: 'DigiLocker verification failed. Please try again.', unavailable: 'DigiLocker opens once our government partner approval is live. Our team will verify you by phone meanwhile.' }[q] || 'DigiLocker: ' + q), 400);
+  })();
   const persist = () => { A.saveUser(u); u = A.user(); };
   const dlg = $('#pd'); dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
   const isOwnerSide = ['owner', 'seller', 'builder'].includes(u.role);

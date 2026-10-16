@@ -2,12 +2,15 @@
  *
  * MODE 'demo'  : everything runs in the browser. OTP is fixed (123456) and "DigiLocker"
  *                verification is simulated and labelled DEMO. No real SMS / identity check.
- * MODE 'live'  : calls your backend (see BACKEND.md). The backend sends the SMS OTP
- *                (via an SMS gateway with DLT-registered templates) and runs the DigiLocker
- *                OAuth 2.0 flow with your registered client id/secret.
+ * MODE 'live'  : the Cloudflare backend (functions/api). OTP is sent and checked on the server,
+ *                the session is an HttpOnly cookie, and accounts, tenancies, purchases, listings,
+ *                saved items and leads are stored in the D1 database, so they work across devices.
+ *                localStorage stays as a cache: every write goes to an outbox that is sent to
+ *                /api/sync, and each page load refreshes the cache from /api/state.
+ * Live is used automatically on the deployed site; `python3 -m http.server` (no /api) runs demo.
  */
 window.KTAuth = (function () {
-  const MODE = 'demo';
+  const MODE = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === 'file:' ? 'demo' : 'live';
   const API = '/api';
   const DEMO_OTP = '123456';
   const SK = 'keetown_session', UK = 'keetown_users';
@@ -20,8 +23,68 @@ window.KTAuth = (function () {
     builder: { label: 'Builder / developer',    short: 'Builder', dl: 'optional', blurb: 'Promoting projects; RERA and GST checked by our team.' }
   };
 
-  const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
-  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const raw = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+  const rawSet = (k, v) => { try { v === undefined ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const read = raw;
+  const write = (k, v) => { const old = raw(k, null); rawSet(k, v); if (MODE === 'live') queue(k, old, v); };
+
+  /* ---------- live sync (outbox → /api/sync, /api/state → cache) ---------- */
+  const OB = 'keetown_outbox', LISTS = { keetown_tenancies: 'tenancies', keetown_purchases: 'purchases', keetown_submissions: 'submissions', keetown_leads: 'leads' };
+  const BLOB = /^keetown_(portal|searches|seen)_\d{10}$/, CACHED = ['keetown_users', 'keetown_tenancies', 'keetown_purchases', 'keetown_submissions'];
+  function diff(oldMap, newMap) {
+    const put = [], del = [];
+    Object.keys(newMap).forEach(id => { if (JSON.stringify(oldMap[id]) !== JSON.stringify(newMap[id])) put.push({ id, data: newMap[id] }); });
+    Object.keys(oldMap).forEach(id => { if (!(id in newMap)) del.push(id); });
+    return { put, del };
+  }
+  const byId = l => Object.fromEntries((Array.isArray(l) ? l : []).filter(x => x && x.id).map(x => [x.id, x]));
+  function queue(k, old, v) {
+    let op = null;
+    if (k === UK) op = { col: 'users', ...diff(old || {}, v || {}) };
+    else if (LISTS[k]) op = { col: LISTS[k], ...diff(byId(old), byId(v)) };
+    else if (BLOB.test(k)) op = v == null ? { col: 'blob', put: [], del: [k] } : { col: 'blob', put: [{ id: k, data: v }], del: [] };
+    if (!op || (!op.put.length && !op.del.length)) return;
+    if (op.col === 'leads') op.del = [];               // the browser only ever adds leads
+    const ob = raw(OB, []); ob.push(op); rawSet(OB, ob); flush();
+  }
+  let flushing = null;
+  function flush() {
+    if (flushing) return flushing.then(() => raw(OB, []).length ? flush() : undefined);
+    flushing = (async () => {
+      let ob = raw(OB, []);
+      while (ob.length) {
+        const op = ob[0], body = JSON.stringify(op);
+        try { const r = await fetch(API + '/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: body.length < 60000, credentials: 'same-origin' }); if (r.status >= 500) break; }
+        catch (e) { break; }                            // offline: keep it for the next page load
+        ob = raw(OB, []); ob.shift(); rawSet(OB, ob);
+      }
+    })().finally(() => { flushing = null; });
+    return flushing;
+  }
+  function xhr(method, url, body) {                   // synchronous on purpose: pages read the cache right after this
+    try { const x = new XMLHttpRequest(); x.open(method, url, false); if (body) x.setRequestHeader('Content-Type', 'application/json'); x.send(body || null); return x; } catch (e) { return null; }
+  }
+  function applyState(st) {
+    const users = {}; if (st.user) users[st.me] = st.user;
+    rawSet(UK, users); rawSet('keetown_tenancies', st.tenancies); rawSet('keetown_purchases', st.purchases); rawSet('keetown_submissions', st.submissions);
+    try { Object.keys(localStorage).filter(k => BLOB.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    Object.entries(st.blobs || {}).forEach(([k, v]) => rawSet(k, v));
+    rawSet(SK, { mobile: st.me, at: Date.now(), staff: !!st.staff });
+  }
+  function clearCache() { CACHED.forEach(k => rawSet(k, undefined)); try { Object.keys(localStorage).filter(k => BLOB.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {} rawSet(SK, undefined); }
+  async function hydrate() {
+    await flush();
+    const r = await fetch(API + '/state', { credentials: 'same-origin', cache: 'no-store' });
+    if (r.status === 401) { clearCache(); return null; }
+    if (!r.ok) throw new Error('Could not load your account. Please try again.');
+    const st = await r.json(); applyState(st); return st;
+  }
+  if (MODE === 'live' && raw(SK, null)) {              // page load: send anything unsent, then refresh the cache
+    raw(OB, []).forEach(op => xhr('POST', API + '/sync', JSON.stringify(op))); rawSet(OB, []);
+    const x = xhr('GET', API + '/state');
+    if (x && x.status === 200) { try { applyState(JSON.parse(x.responseText)); } catch (e) {} }
+    else if (x && x.status === 401) clearCache();
+  }
   const users = () => read(UK, {});
   const saveUser = u => { const all = users(); all[u.mobile] = u; write(UK, all); };
   const session = () => read(SK, null);
@@ -30,15 +93,19 @@ window.KTAuth = (function () {
   const validMobile = m => /^[6-9]\d{9}$/.test(m);
 
   async function sendOtp(mobile) {
-    if (MODE === 'live') { const r = await fetch(API + '/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile }) }); if (!r.ok) throw new Error('Could not send OTP'); return { ok: true }; }
+    if (MODE === 'live') { const r = await fetch(API + '/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile }) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Could not send OTP'); return j; }
     await new Promise(r => setTimeout(r, 500)); return { ok: true, demo: true };
   }
   async function verifyOtp(mobile, otp) {
-    if (MODE === 'live') { const r = await fetch(API + '/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile, otp }) }); if (!r.ok) throw new Error('Invalid OTP'); return await r.json(); }
+    if (MODE === 'live') {
+      const r = await fetch(API + '/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile, otp }), credentials: 'same-origin' });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Incorrect OTP. Please try again.');
+      rawSet(OB, []); await hydrate(); if (j.demo) { ensureDemo(mobile); await flush(); } return j;
+    }
     await new Promise(r => setTimeout(r, 400)); if (otp !== DEMO_OTP) throw new Error('Incorrect OTP. Please try again.'); ensureDemo(mobile); return { token: 'demo' };
   }
-  function startSession(mobile) { write(SK, { mobile, at: Date.now() }); }
-  function logout() { try { localStorage.removeItem(SK); } catch (e) {} }
+  function startSession(mobile) { const s = raw(SK, null); rawSet(SK, { ...(s && s.mobile === mobile ? s : {}), mobile, at: Date.now() }); }
+  function logout() { if (MODE === 'live') { xhr('POST', API + '/logout', '{}'); clearCache(); } else try { localStorage.removeItem(SK); } catch (e) {} }
 
   /* DigiLocker */
   function digilockerStart(returnTo) {
@@ -114,7 +181,7 @@ window.KTAuth = (function () {
     write('keetown_submissions', L);
   }
   function ensureDemo(mobile) {
-    const d = DEMO[mobile]; if (!d || MODE !== 'demo') return;
+    const d = DEMO[mobile]; if (!d) return;
     const all = users();
     if (!all[mobile]) {
       saveUser({ mobile, role: d.role, demo: true, created: stamp(120 * DAY), profile: { name: d.name + ' (demo)', ...d.profile }, consent: { whatsapp: true, email: true, emailAddress: d.profile.email, terms: true, at: stamp(120 * DAY) }, verified: { status: true, method: 'demo', name: d.name, at: stamp(119 * DAY) }, attrib: { first: { utm_source: 'demo', at: stamp(120 * DAY) } } });
@@ -133,7 +200,8 @@ window.KTAuth = (function () {
     write('keetown_purchases', read('keetown_purchases', []).filter(p => p.id !== 'bdemo1'));
     write('keetown_submissions', read('keetown_submissions', []).filter(x => !DEMO[x.mobile]));
     const s = session(); if (s && DEMO[s.mobile]) logout();
+    if (MODE === 'live') return fetch(API + '/demo/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   }
 
-  return { MODE, DEMO_OTP, DEMO_LIST, ensureDemo, resetDemo, ROLES, users, saveUser, session, user, validMobile, sendOtp, verifyOtp, startSession, logout, digilockerStart, markVerified, read, write };
+  return { MODE, DEMO_OTP, DEMO_LIST, ensureDemo, resetDemo, flush, hydrate, ROLES, users, saveUser, session, user, validMobile, sendOtp, verifyOtp, startSession, logout, digilockerStart, markVerified, read, write };
 })();

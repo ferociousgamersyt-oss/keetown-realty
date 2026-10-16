@@ -34,8 +34,27 @@
   let S;
   const load = () => { try { S = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch (e) { S = seed(); } };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
-  const getLeads = () => { try { let l = JSON.parse(localStorage.getItem('keetown_leads')); if (!l) { l = seedLeads(); localStorage.setItem('keetown_leads', JSON.stringify(l)); } return l; } catch (e) { return []; } };
-  const setLeads = l => { try { localStorage.setItem('keetown_leads', JSON.stringify(l)); } catch (e) {} };
+  /* Leads: on the deployed site a staff login (STAFF_MOBILES) loads the live inbox from the backend;
+     otherwise this browser's sample leads are used. */
+  const LIVE = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && location.protocol !== 'file:';
+  let liveLeads = null, liveState = 'local';
+  if (LIVE) { try { const x = new XMLHttpRequest(); x.open('GET', '/api/leads', false); x.send(); if (x.status === 200) { liveLeads = JSON.parse(x.responseText); liveState = 'live'; } else liveState = x.status === 403 ? 'notstaff' : 'signedout'; } catch (e) {} }
+  const getLeads = () => { if (liveLeads) return liveLeads; try { let l = JSON.parse(localStorage.getItem('keetown_leads')); if (!l) { l = seedLeads(); localStorage.setItem('keetown_leads', JSON.stringify(l)); } return l; } catch (e) { return []; } };
+  const setLeads = l => {
+    if (liveLeads) {
+      const old = Object.fromEntries(liveLeads.map(x => [x.id, JSON.stringify(x)])), ids = new Set(l.map(x => x.id));
+      const put = l.filter(x => old[x.id] !== JSON.stringify(x)).map(x => ({ id: x.id, data: x })), del = liveLeads.filter(x => !ids.has(x.id)).map(x => x.id);
+      liveLeads = JSON.parse(JSON.stringify(l));
+      if (put.length || del.length) fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ col: 'leads', put, del }) });
+      return;
+    }
+    try { localStorage.setItem('keetown_leads', JSON.stringify(l)); } catch (e) {}
+  };
+  if (LIVE) document.addEventListener('DOMContentLoaded', () => {
+    const b = document.createElement('div'); b.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;padding:8px 14px;border-radius:999px;font:500 12.5px Inter,system-ui,sans-serif;box-shadow:0 6px 20px rgba(11,26,51,.15);' + (liveState === 'live' ? 'background:#e7f3ec;color:#14532d' : 'background:#fff;color:#1e4386');
+    b.innerHTML = liveState === 'live' ? 'Live leads inbox · synced with the website' : liveState === 'notstaff' ? 'Signed in, but this number is not on the staff list — showing sample leads' : 'Sample leads · <a href="../login.html" style="text-decoration:underline">log in with a staff mobile</a> for the live inbox';
+    document.body.append(b);
+  });
   const seedLeads = () => [
     { id: 's1', name: 'Anil K. (sample)', phone: '9800000001', intent: 'buy', locality: 'kokapet', budget: '₹2–5 Cr', note: 'NRI, Dallas. East-facing 3BHK.', source: 'Instagram', stage: 'contacted', created: new Date(Date.now() - 864e5 * 2).toISOString() },
     { id: 's2', name: 'Meera S. (sample)', phone: '9800000002', intent: 'rent', locality: 'kondapur', budget: '₹30k/mo', note: 'Joining Microsoft IDC in Nov.', source: 'Google Business', stage: 'new', created: new Date().toISOString() },

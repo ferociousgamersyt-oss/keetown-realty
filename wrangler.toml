@@ -1,0 +1,22 @@
+# Cloudflare Pages project config (used by `wrangler pages deploy`).
+name = "keetown-realty"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "keetown"
+database_id = "26ca827c-2505-4658-9444-930a8830c4fe"
+
+[vars]
+# Five public demo accounts (OTP 123456). They can only ever see demo data. Set to "0" to switch off.
+DEMO_ACCOUNTS = "1"
+# Staff mobiles (comma separated) that can open the live leads inbox in Keetown OS.
+STAFF_MOBILES = ""
+# DigiLocker (MeriPehchaan) client id + redirect, once partner onboarding is approved.
+DIGILOCKER_CLIENT_ID = ""
+DIGILOCKER_REDIRECT = "https://keetown-realty.pages.dev/api/digilocker/callback"
+# Secrets (set with `wrangler pages secret put NAME`, never in this file):
+#   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID   – SMS OTP via Twilio Verify
+#   or MSG91_AUTHKEY, MSG91_TEMPLATE_ID                          – SMS OTP via MSG91 (DLT template)
+#   DIGILOCKER_CLIENT_SECRET

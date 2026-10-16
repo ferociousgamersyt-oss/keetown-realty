@@ -16,10 +16,10 @@
   $('#mForm').onsubmit = e => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(e.target));
     try {
-      const L = JSON.parse(localStorage.getItem('keetown_leads') || '[]');
+      const A = window.KTAuth, L = A ? A.read('keetown_leads', []) : [];
       L.unshift({ id: 'm' + Date.now(), name: d.name, phone: d.phone, intent: 'manage', locality: d.locality, budget: '', note: `${d.ptype} · owner based in ${d.where}`, source: window.KTTrack ? KTTrack.source() : 'Website', channel: 'management_audit', attrib: window.KTTrack ? KTTrack.attribution() : {}, stage: 'new', created: new Date().toISOString() });
       window.KTTrack && KTTrack.event('lead_created', { intent: 'manage', source: 'management_audit' });
-      localStorage.setItem('keetown_leads', JSON.stringify(L));
+      A && A.write('keetown_leads', L);
     } catch (_) {}
     const t = `Hi Keetown Realty, I'm ${d.name} (${d.phone}). I own a ${d.ptype} in ${d.locality ? KT.loc(d.locality).name : 'Hyderabad'} and live in ${d.where}. Please share a free property-management audit.`;
     $('#mMsg').textContent = 'Opening WhatsApp…'; window.open(KT.wa(t), '_blank', 'noopener'); e.target.reset();
