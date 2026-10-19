@@ -468,7 +468,7 @@ def main():
     print(f"built js/data.js, {len(PROPS)} property pages, {len(LOCS)} locality guides, {len(combos)} search landing pages ({len(indexable)} indexable), properties.html, localities.html, post-property.html, sitemap.xml ({len(urls)} urls), robots.txt")
 
 # ---------------------------------------------------------------- public deploy folder
-PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml'}
+PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers'}
 def dist():
     """Copy the site to dist/ for Cloudflare Pages: public site + team workspace + promo studio (noindex). Excludes data/, build.py and notes."""
     import shutil
