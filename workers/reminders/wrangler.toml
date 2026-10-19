@@ -1,0 +1,18 @@
+# Daily WhatsApp rent reminders. Deploy: cd workers/reminders && wrangler deploy
+name = "keetown-reminders"
+main = "index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false   # no public URL needed; it only runs on the schedule
+
+[triggers]
+crons = ["30 3 * * *"]   # 03:30 UTC = 9:00 am IST, every day
+
+[[d1_databases]]
+binding = "DB"
+database_name = "keetown"
+database_id = "26ca827c-2505-4658-9444-930a8830c4fe"
+
+[vars]
+WA_TEMPLATE = "rent_reminder"   # approved template name in WhatsApp Manager
+WA_LANG = "en"
+# Secrets (wrangler secret put NAME): WA_TOKEN, WA_PHONE_ID, optional RUN_KEY for manual dry runs

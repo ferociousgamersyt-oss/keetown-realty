@@ -66,10 +66,10 @@ window.KTTen = (function () {
   function notice(t, text, by, extra = {}) { t.notices.unshift({ at: new Date().toISOString(), text, by, ...extra }); }
   function remind(t, k, by = 'owner', auto = false) { const r = ledger(t).find(x => x.month === k); t.reminders.unshift({ at: new Date().toISOString(), month: k, by, auto }); notice(t, `${auto ? 'Automatic reminder' : 'Reminder from your owner'}: ${r.status === 'partial' ? 'balance' : 'rent'} of ₹${(r.balance || r.amount).toLocaleString('en-IN')} for ${r.label} is ${r.status === 'overdue' || (r.status === 'partial' && daysTo(r.due) < 0) ? 'overdue since' : 'due on'} ${fmtD(r.due)}.`, auto ? 'keetown' : by); return save(t); }
   function reminderText(t, r) { return `Hi ${t.tenantName || ''}, a gentle reminder that ${r.status === 'partial' ? 'the balance' : 'rent'} of ₹${(r.balance || r.amount).toLocaleString('en-IN')} for ${r.label} (${t.title}) is ${r.status === 'overdue' || (r.status === 'partial' && daysTo(r.due) < 0) ? 'overdue since' : 'due on'} ${fmtD(r.due)}.${t.ownerUpi ? ' UPI: ' + t.ownerUpi + '.' : ''} You can also pay and download receipts from your Keetown portal. Thank you!`; }
-  /* Automatic reminders: in production a daily server job sends these via the WhatsApp Business API.
-   * Here we simulate the ones that would already have fired, so both portals show them. */
+  /* Automatic reminders. Live site: the daily job in workers/reminders sends them on WhatsApp at 9 am IST
+   * and writes them here, so the browser does nothing. Demo mode: simulate the ones that would have fired. */
   function runAuto(t) {
-    if (!t.auto || !t.auto.enabled) return t; let changed = false;
+    if (A.MODE === 'live' || !t.auto || !t.auto.enabled) return t; let changed = false;
     ledger(t).filter(r => r.status === 'due' || r.status === 'overdue' || (r.status === 'partial' && daysTo(r.due) <= 0)).forEach(r => {
       const d = daysTo(r.due), sent = t.reminders.filter(x => x.month === r.month && x.auto);
       const want = (d <= t.auto.daysBefore && d > 0 && !sent.some(x => x.kind === 'before')) ? 'before' : (d === 0 && t.auto.onDue && !sent.some(x => x.kind === 'due')) ? 'due' : (d < 0 && (!sent.length || (today() - new Date(sent[0].at)) / 864e5 >= t.auto.overdueEvery)) ? 'overdue' : '';

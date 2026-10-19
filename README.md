@@ -55,6 +55,12 @@ Locally (`python3 -m http.server`) everything runs in browser-only demo mode. To
 | DigiLocker | Partner onboarding via API Setu / MeriPehchaan (business PAN, GST, use-case approval) | set `DIGILOCKER_CLIENT_ID` in `wrangler.toml`, `wrangler pages secret put DIGILOCKER_CLIENT_SECRET`; register redirect `https://keetown-realty.pages.dev/api/digilocker/callback` |
 | Staff inbox | Your team's mobile numbers | put them in `STAFF_MOBILES` in `wrangler.toml` and redeploy |
 
+| WhatsApp rent reminders | Meta WhatsApp Business account (Cloud API), a verified business phone number, and the template below approved as **Utility** | `cd workers/reminders && wrangler secret put WA_TOKEN` and `wrangler secret put WA_PHONE_ID` |
+
+**Rent reminders** (`workers/reminders`, Worker `keetown-reminders`) run every day at 9:00 am IST. They use each tenancy's settings (N days before, on the due date, every N days overdue), send only to tenants who opted in to WhatsApp, never message demo tenancies, never send the same reminder twice, and write every reminder into the tenancy so both portals show it. Without the WhatsApp keys they still run and post the reminder in the portal.
+Template `rent_reminder` (English, Utility), 6 variables:
+> Hi {{1}}, a reminder from Keetown Realty: rent of {{2}} for {{3}} ({{4}}) is {{5}}. Pay the owner directly by UPI to {{6}} and download your receipt from the Keetown portal. Reply STOP to opt out.
+
 Until an SMS provider is set, real numbers get a "SMS login is being set up — message us on WhatsApp" message. Staff numbers can still sign in: their code is written to the function log (`wrangler pages deployment tail --project-name keetown-realty`).
 Check status any time: https://keetown-realty.pages.dev/api/health
 
