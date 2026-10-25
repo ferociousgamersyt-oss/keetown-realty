@@ -23,7 +23,7 @@
 
 /* nav */
 .hnav{position:fixed;inset:0 0 auto;z-index:120;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px max(24px,calc((100% - 1240px)/2));color:#fff;transition:background .5s var(--ease),color .4s,padding .4s var(--ease),transform .5s var(--ease),box-shadow .4s}
-.hnav.scrolled{background:rgba(255,255,255,.88);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);color:var(--t);padding-top:12px;padding-bottom:12px;box-shadow:0 1px 0 var(--hl)}
+.hnav.scrolled{background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--t);padding-top:12px;padding-bottom:12px;box-shadow:0 1px 0 var(--hl)}
 .hnav.hide{transform:translateY(-100%)}
 .hlogo{position:relative;display:block;height:52px}.hlogo img{height:52px;width:auto;transition:opacity .4s}.hlogo .lg-c{position:absolute;inset:0;opacity:0}.hnav.scrolled .lg-c{opacity:1}.hnav.scrolled .lg-w{opacity:0}
 .hlinks{display:flex;gap:30px;font-size:.92rem;font-weight:500}

@@ -11,7 +11,7 @@ window.KTMotion = (function () {
   /* smooth scroll */
   let lenis = null;
   if (!reduce && window.Lenis && !document.body.classList.contains('portal-body')) {
-    lenis = new Lenis({ duration: 1.15, smoothWheel: true, wheelMultiplier: .9 });
+    lenis = new Lenis({ lerp: .14, smoothWheel: true, wheelMultiplier: 1, syncTouch: false });   // light smoothing: follows the wheel closely, native touch scrolling
     if (window.gsap && window.ScrollTrigger) { lenis.on('scroll', ScrollTrigger.update); gsap.ticker.add(t => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
     else { const raf = t => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); }
     document.addEventListener('click', e => { const a = e.target.closest('a[href^="#"]'); if (!a || a.getAttribute('href').length < 2) return; const el = document.querySelector(a.getAttribute('href')); if (el) { e.preventDefault(); lenis.scrollTo(el, { offset: -70 }); } });

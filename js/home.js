@@ -3,7 +3,7 @@
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const { properties, localities, loc, fmt, url } = KT, M = KTMotion, reduce = M.reduce;
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const hasGSAP = !!(window.gsap && window.ScrollTrigger); if (hasGSAP) gsap.registerPlugin(ScrollTrigger);
+  const hasGSAP = !!(window.gsap && window.ScrollTrigger); if (hasGSAP) { gsap.registerPlugin(ScrollTrigger); ScrollTrigger.config({ ignoreMobileResize: true }); }
   // always start at the top so pinned/scrubbed sections measure correctly
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; if (!location.hash) scrollTo(0, 0);
   const K = window.KP, H = window.KAds && KAds.H;
@@ -46,10 +46,10 @@
   /* ---------------- hero: living isometric Hyderabad ---------------- */
   (function hero() {
     const cv = $('#city'); if (!cv || !H) return; const ctx = cv.getContext('2d');
-    let W, Ht, dpr, mob; const size = () => { dpr = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; Ht = cv.clientHeight; cv.width = W * dpr; cv.height = Ht * dpr; mob = W < 900; snap = null; };
-    let snap = null, snapT = -9; size(); addEventListener('resize', size);
+    let W, Ht, dpr, mob; const size = () => { dpr = Math.min(1.5, devicePixelRatio || 1); W = cv.clientWidth; Ht = cv.clientHeight; cv.width = W * dpr; cv.height = Ht * dpr; mob = W < 900; snapOk = false; };
+    const snap = document.createElement('canvas'), sc = snap.getContext('2d'); let snapOk = false; size(); addEventListener('resize', size);
     let tx = 0, ty = 0, mx = 0, my = 0; $('#hero').addEventListener('pointermove', e => { tx = e.clientX / innerWidth - .5; ty = e.clientY / innerHeight - .5; });
-    const P = Array.from({ length: 70 }, (_, i) => { const r = Math.sin(i * 91.7) * 1e4; const q = r - Math.floor(r); return { x: (Math.sin(i * 12.9) + 1) / 2, y: q, s: .4 + ((i * 37) % 10) / 10, v: .004 + q * .01, p: i }; });
+    const P = Array.from({ length: 46 }, (_, i) => { const r = Math.sin(i * 91.7) * 1e4; const q = r - Math.floor(r); return { x: (Math.sin(i * 12.9) + 1) / 2, y: q, s: .4 + ((i * 37) % 10) / 10, v: .004 + q * .01, p: i }; });
     let vis = true; onScreen($('#hero'), v => { vis = v; if (v) requestAnimationFrame(loop); });
     const t0 = performance.now(); let last = 0;
     const geo = () => { const s = Math.min(W / 1440, Ht / 900) * (mob ? .62 : .8); return { s, cx: mob ? W * .62 : W * .77, by: mob ? Ht * .98 : Ht * .84 }; };
@@ -67,7 +67,7 @@
       let pinAt;
       if (t < 3.2) pinAt = drawCity(ctx, t);           // rising: draw live
       else {                                            // settled: cache a snapshot, refresh for window twinkle
-        if (!snap || t - snapT > 1.6) { snap = document.createElement('canvas'); snap.width = cv.width; snap.height = cv.height; const sc = snap.getContext('2d'); sc.setTransform(dpr, 0, 0, dpr, 0, 0); snap.pin = drawCity(sc, t); snapT = t; }
+        if (!snapOk) { snap.width = cv.width; snap.height = cv.height; sc.setTransform(dpr, 0, 0, dpr, 0, 0); snap.pin = drawCity(sc, t); snapOk = true; }   // draw the settled city once, then reuse it
         ctx.setTransform(1, 0, 0, 1, mx * -26 * dpr, my * -14 * dpr); ctx.drawImage(snap, 0, 0); ctx.setTransform(dpr, 0, 0, dpr, mx * -26 * dpr, my * -14 * dpr); pinAt = snap.pin;
       }
       if (pinAt && t > 1.6) { const k = Math.min(1, (t - 1.6) / .6), bob = Math.sin(t * 2.2) * 9; ctx.beginPath(); ctx.ellipse(pinAt[0], pinAt[1] - 6, 26 * g.s * (1 + .2 * Math.sin(t * 2.2)), 9 * g.s, 0, 0, 7); ctx.fillStyle = 'rgba(169,196,238,.35)'; ctx.fill(); H.pin(ctx, pinAt[0], pinAt[1] - 18 * g.s - bob - (1 - k) * 200, 2.3 * g.s, '#ffffff'); }
@@ -82,14 +82,14 @@
     const t = $('#mq'), items = localities.map(l => `<span>${esc(l.name.replace(' / HITEC City', ''))}</span><i>·</i>`).join(''); t.innerHTML = items + items;
     if (reduce) return; let x = 0, v = 0, prev = scrollY, w = 0; const measure = () => w = t.scrollWidth / 2; measure(); addEventListener('resize', measure);
     let vis = true; onScreen(t, s => vis = s);
-    (function tick() { const dy = scrollY - prev; prev = scrollY; v += (Math.abs(dy) * .15 - v) * .1; if (vis) { x -= .6 + v; if (-x >= w) x += w; t.style.transform = `translateX(${x}px)`; } requestAnimationFrame(tick); })();
+    (function tick() { const dy = scrollY - prev; prev = scrollY; v += (Math.abs(dy) * .15 - v) * .1; if (vis) { x -= .6 + v; if (-x >= w) x += w; t.style.transform = `translate3d(${x}px,0,0)`; } requestAnimationFrame(tick); })();
   })();
 
   /* ---------------- statement: words light up as you scroll ---------------- */
   (function statement() {
     const el = $('.statement'); el.innerHTML = el.textContent.split(' ').map(w => `<span class="wd">${esc(w)}</span>`).join(' ');
-    const wds = $$('.wd', el); if (reduce || !hasGSAP) { wds.forEach(w => w.style.opacity = 1); return; }
-    ScrollTrigger.create({ trigger: el, start: 'top 80%', end: 'bottom 45%', scrub: true, onUpdate: s => { const n = s.progress * wds.length; wds.forEach((w, i) => w.style.opacity = i < n ? 1 : .14); } });
+    const wds = $$('.wd', el); let lit = 0; if (reduce || !hasGSAP) { wds.forEach(w => w.style.opacity = 1); return; }
+    ScrollTrigger.create({ trigger: el, start: 'top 80%', end: 'bottom 45%', scrub: true, onUpdate: s => { const n = Math.round(s.progress * wds.length); if (n === lit) return; for (let i = Math.min(n, lit); i < Math.max(n, lit); i++) wds[i].style.opacity = i < n ? 1 : .14; lit = n; } });
   })();
 
   /* ---------------- collection carousel ---------------- */
@@ -111,10 +111,11 @@
     track.addEventListener('click', e => { if (moved) { e.preventDefault(); moved = false; } }, true); })();
   function hoverCursor() {
     if (matchMedia('(hover:none)').matches) return;
-    $$('.pcard').forEach(c => { c.onmouseenter = () => cursor.classList.add('on'); c.onmouseleave = () => cursor.classList.remove('on'); });
+    $$('.pcard').forEach(c => { c.onmouseenter = () => { cursor.classList.add('on'); if (!following) { following = true; kx = cx; ky = cy; requestAnimationFrame(follow); } }; c.onmouseleave = () => cursor.classList.remove('on'); });
   }
-  let cx = 0, cy = 0, kx = 0, ky = 0; addEventListener('pointermove', e => { cx = e.clientX; cy = e.clientY; });
-  (function follow() { kx += (cx - kx) * .18; ky += (cy - ky) * .18; cursor.style.left = kx + 'px'; cursor.style.top = ky + 'px'; requestAnimationFrame(follow); })();
+  let cx = 0, cy = 0, kx = 0, ky = 0, following = false;
+  function follow() { kx += (cx - kx) * .2; ky += (cy - ky) * .2; cursor.style.translate = `${kx}px ${ky}px`; if (cursor.classList.contains('on') || Math.abs(cx - kx) + Math.abs(cy - ky) > .5) requestAnimationFrame(follow); else following = false; }
+  addEventListener('pointermove', e => { cx = e.clientX; cy = e.clientY; if (!following && cursor.classList.contains('on')) { following = true; requestAnimationFrame(follow); } }, { passive: true });
   collection('sale');
 
   /* ---------------- story: scroll-scrubbed motion graphics ---------------- */
@@ -131,7 +132,9 @@
     if (reduce || !hasGSAP) { draw(0, dur(0) - .5); steps.forEach(s => s.classList.add('on')); return; }
     draw(0, .2);
     ScrollTrigger.create({ trigger: '.story-steps', start: 'top 55%', end: 'bottom 60%', scrub: .6,
-      onUpdate: s => { const f = Math.min(MAP.length - .001, s.progress * MAP.length), i = Math.floor(f), local = f - i; draw(i, Math.min(dur(i) - .35, .25 + local * 1.25 * dur(i))); } });
+      onUpdate: s => { want = s.progress; if (!queued) { queued = true; requestAnimationFrame(paint); } } });
+    let want = 0, drawn = -1, queued = false;
+    function paint() { queued = false; if (Math.abs(want - drawn) < .0015) return; drawn = want; const f = Math.min(MAP.length - .001, want * MAP.length), i = Math.floor(f), local = f - i; draw(i, Math.min(dur(i) - .35, .25 + local * 1.25 * dur(i))); }
   })();
 
   /* ---------------- localities: pinned horizontal reel ---------------- */
@@ -142,7 +145,7 @@
       <div class="lc2-band"><small>Apartments · per sq.ft</small><b>₹${l.sale[0].toLocaleString('en-IN')} – ₹${l.sale[1].toLocaleString('en-IN')}</b><div class="lc2-bar"><i style="left:${(l.sale[0] - lo) / (hi - lo) * 100}%;width:${Math.max(3, (l.sale[1] - l.sale[0]) / (hi - lo) * 100)}%"></i></div><small>2BHK rent ₹${l.rent2[0]}k–${l.rent2[1]}k · yield ~${l.yield}%</small></div>
       <span class="lc2-go">Read the guide →</span></a>`).join('');
     if (reduce || !hasGSAP || innerWidth < 1000) { rail.style.overflowX = 'auto'; rail.style.width = 'auto'; rail.style.scrollSnapType = 'x mandatory'; return; }
-    gsap.to(rail, { x: () => -(rail.scrollWidth - innerWidth), ease: 'none', scrollTrigger: { trigger: '#locs', start: 'top top', end: () => '+=' + (rail.scrollWidth - innerWidth), pin: '.locs-pin', scrub: .8, invalidateOnRefresh: true } });
+    gsap.to(rail, { x: () => -(rail.scrollWidth - innerWidth), ease: 'none', scrollTrigger: { trigger: '#locs', start: 'top top', end: () => '+=' + (rail.scrollWidth - innerWidth), pin: '.locs-pin', scrub: .8, anticipatePin: 1, invalidateOnRefresh: true } });
   })();
 
   /* ---------------- management sparkline ---------------- */
@@ -158,9 +161,11 @@
 
   /* ---------------- CTA: flowing contours ---------------- */
   (function cta() {
-    const cv = $('#ctaCv'), ctx = cv.getContext('2d'); let W, Ht, dpr, vis = false; const size = () => { dpr = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; Ht = cv.clientHeight; cv.width = W * dpr; cv.height = Ht * dpr; }; size(); addEventListener('resize', size);
+    const cv = $('#ctaCv'), ctx = cv.getContext('2d'); let W, Ht, dpr, vis = false; const size = () => { dpr = Math.min(1.5, devicePixelRatio || 1); W = cv.clientWidth; Ht = cv.clientHeight; cv.width = W * dpr; cv.height = Ht * dpr; }; size(); addEventListener('resize', size);
     const t0 = performance.now();
+    let lastC = 0;
     function draw(now) {
+      if (vis && !reduce && now - lastC < 33) { requestAnimationFrame(draw); return; } lastC = now;
       const t = reduce ? 0 : (now - t0) / 1000; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Ht);
       for (let k = 0; k < 22; k++) { ctx.beginPath(); for (let x = -10; x <= W + 10; x += 16) { const y = Ht * .08 + k * Ht / 21 + Math.sin(x * .004 + k * .5 + t * .25) * 28 + Math.sin(x * .011 - k * .3 - t * .18) * 10; x < 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.strokeStyle = `rgba(169,196,238,${k % 5 === 0 ? .2 : .07})`; ctx.lineWidth = k % 5 === 0 ? 1.4 : 1; ctx.stroke(); }
       if (vis && !reduce) requestAnimationFrame(draw);
