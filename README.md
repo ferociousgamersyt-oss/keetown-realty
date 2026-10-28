@@ -32,6 +32,21 @@ python3 -m http.server 5173   # serve locally → http://localhost:5173
 - Data: `keetown_relocations` and `keetown_offices` (`js/corp.js`), synced like tenancies. Staff mobiles can read and update every case.
 - Packages, fees and services live in `js/corp.js` (fees are placeholders until the rate card is final).
 
+## Who can sign up
+- **Self sign-up on the website:** tenants, buyers, owners renting out, sellers.
+- **Partner logins, created by Keetown after a tie-up:** builders/developers, companies (relocation / office space) and property-management clients. The login page has a "Partner / team login" button; numbers that were not invited are turned away with a "talk to us" link. The server enforces this, so nobody can make themselves a builder or company account.
+- **Keetown admin:** mobiles in `STAFF_MOBILES` (`wrangler.toml`, currently 6301778084). Admin sees *All inventory* (Keetown stock and every builder's), can upload stock as Keetown, mark units Sold/Booked/Hold, delete units that are off the market, and create partner logins under *Partner logins*.
+- Until an SMS provider is connected, the admin OTP is shown by `scripts/admin-otp.sh` (reads the Cloudflare log; only the account owner can see it).
+
+## Builder inventory (bulk uploads)
+- Builder accounts get **Inventory**, **Bulk upload** and **Team** tabs in the portal (`js/inventory.js`, screens in `js/portal.js`).
+- Upload a CSV (template downloadable in the portal; Excel/Google Sheets "Save as CSV") or paste cells straight from a sheet. Up to 20,000 units per upload; every row is checked and problems are listed by row number before anything is saved.
+- Re-uploading the same project + tower + unit number updates that unit, so builders can re-send their whole sheet any time. Bulk status changes (Available / Booked / Hold / Sold), price edits, delete and CSV export are in the Inventory tab.
+- **Team:** the builder adds workers by name and mobile. A worker logs in with their own mobile + OTP and lands straight in that builder's inventory (upload and update only). The server only lets a builder add people to their own team.
+- Saved to the server in batches of 150. Units from verified builders go live on the website at once; otherwise they wait until Keetown approves the builder (`POST /api/staff/verify {mobile}` from a staff login).
+- Live, available units join search, maps, matching and relocation results, and open on `unit.html?id=…`. Public feed: `GET /api/inventory` (no personal data).
+- Demo: builder **Sanjay** (9000000005) has 60 sample units; **Kiran** (9000000007) is on his upload team.
+
 ## Data flow
 `data/catalog.json` (brand, 17 localities, listings) → `build.py` → `js/data.js` + every generated page + `sitemap.xml` + `robots.txt`.
 **Never edit `js/data.js` or the generated folders by hand.** All listings are illustrative samples (`"sample": true` = generated); prices are indicative placeholders.

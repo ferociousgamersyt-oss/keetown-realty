@@ -20,8 +20,9 @@ window.KTAuth = (function () {
     owner:   { label: 'Rental property owner',  short: 'Owner',   dl: 'required', blurb: 'Want to rent out or have us manage your property.' },
     seller:  { label: 'Property seller',        short: 'Seller',  dl: 'required', blurb: 'Selling a flat, villa, plot or commercial space.' },
     buyer:   { label: 'Buyer (specific need)',  short: 'Buyer',   dl: 'optional', blurb: 'Searching for a specific property in specific areas.' },
-    builder: { label: 'Builder / developer',    short: 'Builder', dl: 'optional', blurb: 'Promoting projects; RERA and GST checked by our team.' },
-    company: { label: 'Company / HR (Keetown for Business)', short: 'Company', dl: 'optional', blurb: 'Relocating employees to Hyderabad or looking for office space.' }
+    builder: { label: 'Builder / developer',    short: 'Builder', dl: 'optional', partner: true, blurb: 'Promoting projects; RERA and GST checked by our team.' },
+    company: { label: 'Company / HR (Keetown for Business)', short: 'Company', dl: 'optional', partner: true, blurb: 'Relocating employees to Hyderabad or looking for office space.' },
+    admin:   { label: 'Keetown team', short: 'Admin', dl: 'optional', hidden: true, blurb: 'Keetown staff.' }
   };
 
   const raw = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
@@ -30,8 +31,8 @@ window.KTAuth = (function () {
   const write = (k, v) => { const old = raw(k, null); rawSet(k, v); if (MODE === 'live') queue(k, old, v); };
 
   /* ---------- live sync (outbox → /api/sync, /api/state → cache) ---------- */
-  const OB = 'keetown_outbox', LISTS = { keetown_tenancies: 'tenancies', keetown_purchases: 'purchases', keetown_submissions: 'submissions', keetown_leads: 'leads', keetown_relocations: 'relocations', keetown_offices: 'offices' };
-  const BLOB = /^keetown_(portal|searches|seen)_\d{10}$/, CACHED = ['keetown_users', 'keetown_tenancies', 'keetown_purchases', 'keetown_submissions', 'keetown_relocations', 'keetown_offices'];
+  const OB = 'keetown_outbox', LISTS = { keetown_tenancies: 'tenancies', keetown_purchases: 'purchases', keetown_submissions: 'submissions', keetown_leads: 'leads', keetown_relocations: 'relocations', keetown_offices: 'offices', keetown_inventory: 'inventory', keetown_teams: 'teams' };
+  const BLOB = /^keetown_(portal|searches|seen)_\d{10}$/, CACHED = ['keetown_users', 'keetown_tenancies', 'keetown_purchases', 'keetown_submissions', 'keetown_relocations', 'keetown_offices', 'keetown_teams', 'keetown_inventory'];
   function diff(oldMap, newMap) {
     const put = [], del = [];
     Object.keys(newMap).forEach(id => { if (JSON.stringify(oldMap[id]) !== JSON.stringify(newMap[id])) put.push({ id, data: newMap[id] }); });
@@ -46,7 +47,9 @@ window.KTAuth = (function () {
     else if (BLOB.test(k)) op = v == null ? { col: 'blob', put: [], del: [k] } : { col: 'blob', put: [{ id: k, data: v }], del: [] };
     if (!op || (!op.put.length && !op.del.length)) return;
     if (op.col === 'leads') op.del = [];               // the browser only ever adds leads
-    const ob = raw(OB, []); ob.push(op); rawSet(OB, ob); flush();
+    const ob = raw(OB, []), N = 150;                  // big uploads go to the server in batches
+    for (let i = 0; i < Math.max(op.put.length, op.del.length); i += N) ob.push({ col: op.col, put: op.put.slice(i, i + N), del: op.del.slice(i, i + N) });
+    rawSet(OB, ob); flush();
   }
   let flushing = null;
   function flush() {
@@ -67,7 +70,7 @@ window.KTAuth = (function () {
   }
   function applyState(st) {
     const users = {}; if (st.user) users[st.me] = st.user;
-    rawSet(UK, users); rawSet('keetown_tenancies', st.tenancies); rawSet('keetown_purchases', st.purchases); rawSet('keetown_submissions', st.submissions); rawSet('keetown_relocations', st.relocations || []); rawSet('keetown_offices', st.offices || []);
+    rawSet(UK, users); rawSet('keetown_tenancies', st.tenancies); rawSet('keetown_purchases', st.purchases); rawSet('keetown_submissions', st.submissions); rawSet('keetown_relocations', st.relocations || []); rawSet('keetown_offices', st.offices || []); rawSet('keetown_teams', st.teams || []);
     try { Object.keys(localStorage).filter(k => BLOB.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
     Object.entries(st.blobs || {}).forEach(([k, v]) => rawSet(k, v));
     rawSet(SK, { mobile: st.me, at: Date.now(), staff: !!st.staff });
@@ -143,9 +146,12 @@ window.KTAuth = (function () {
     '9000000003': { role: 'buyer', name: 'Arjun Reddy', profile: { areas: ['kokapet', 'narsingi', 'tellapur', 'findist'], budgetMin: 150, budgetMax: 300, types: ['Apartment', 'Villa'], bedsMin: '3', possession: 'Any', purpose: 'Self-use', loan: 'Yes', timeline: 'Within 3 months', office: 'findist', email: 'arjun.demo@example.com', heard: 'YouTube' } },
     '9000000004': { role: 'seller', name: 'Lakshmi Rao', profile: { locality: 'miyapur', areas: ['miyapur'], society: 'Metro Heights', ptype: 'Apartment', beds: '3', size: '1650', unit: 'sq.ft', price: '105', status: 'Ready to move', age: '5–10 years', timeline: 'Within 3 months', email: 'lakshmi.demo@example.com', heard: 'Friend / referral' } },
     '9000000006': { role: 'company', name: 'Meera Iyer', profile: { company: 'Nimbus Analytics (demo)', designation: 'HR Business Partner', industry: 'Technology / GCC', size: '201–1,000', office: 'findist', moves: '10–50', interest: ['Employee relocation', 'Office space'], gst: '', email: 'meera.demo@example.com', heard: 'LinkedIn' } },
+    '9000000008': { role: 'admin', name: 'Keetown Admin', profile: { company: 'Keetown Realty', email: 'admin.demo@example.com' } },   // local demo only, never on the live site
+    '9000000007': { role: 'builder', name: 'Kiran Rao', profile: { company: 'Skyline Developers (demo)', staffOf: '9000000005', email: 'kiran.demo@example.com', heard: 'Invited by Skyline Developers' } },
     '9000000005': { role: 'builder', name: 'Sanjay Varma', profile: { company: 'Skyline Developers (demo)', rera: 'P024000XXXXX (demo)', gst: '', website: '', areas: ['kokapet', 'narsingi'], pt: 'Apartments', units: '240', email: 'sales.demo@example.com', heard: 'Property portal' } }
   };
-  const DEMO_LIST = Object.entries(DEMO).map(([mobile, d]) => ({ mobile, role: d.role, name: d.name }));
+  const DEMO_LIST = Object.entries(DEMO).filter(([m]) => MODE === 'demo' || m !== '9000000008').map(([mobile, d]) => ({ mobile, role: d.role, name: d.name }));
+  const isStaff = () => { const s = session(); return !!(s && (s.staff || (MODE === 'demo' && s.mobile === '9000000008'))); };
   function seedTenancy() {
     const L = read('keetown_tenancies', []); if (L.some(t => t.id === 'tdemo1')) return;
     const t0 = new Date(), start = new Date(t0.getFullYear(), t0.getMonth() - 4, 1), pay = [];
@@ -206,6 +212,15 @@ window.KTAuth = (function () {
       comments: [{ at: stamp(5 * DAY), text: 'Three options within budget. Thursday visits confirmed; cab pickup from your current office at 10:15.', by: 'keetown' }] });
     write('keetown_offices', O);
   }
+  function seedInventory() {   // demo builder: two projects, 60 units, and Kiran on the upload team
+    const I = window.KTInv; if (!I) return;
+    const T = read('keetown_teams', []); if (!T.some(t => t.id === 'tm9000000005_9000000007')) { T.push({ id: 'tm9000000005_9000000007', builder: '9000000005', builderName: 'Skyline Developers (demo)', worker: '9000000007', workerName: 'Kiran Rao', role: 'Uploader', at: stamp(20 * DAY) }); write('keetown_teams', T); }
+    if (I.forBuilder('9000000005').length) return;
+    const rows = [I.COLS.map(c => c[0])];
+    ['A', 'B'].forEach(tw => { for (let f = 3; f <= 17; f += 2) [1, 2].forEach(k => { const big = k === 1; rows.push(['Skyline Residences (demo)', tw, `${f}0${k}`, 'sale', 'Apartment', big ? 3 : 2, big ? 1850 : 1320, f, 32, big ? 'East' : 'North', big ? 160 + f : 112 + f, 'Narsingi', (f + k) % 7 === 0 ? 'Booked' : 'Available', 'Dec 2027', 'Unfurnished', big ? 2 : 1, 'P02400000000', '']); }); });
+    for (let f = 2; f <= 15; f++) [1, 2].forEach(k => { if (rows.length > 61) return; rows.push(['Skyline Rentals Kokapet (demo)', 'C', `${f}0${k}`, 'rent', 'Apartment', k === 1 ? 3 : 2, k === 1 ? 1700 : 1250, f, 20, 'East', k === 1 ? 62000 + f * 500 : 42000 + f * 400, 'Kokapet', f % 5 === 0 ? 'Hold' : 'Available', 'Ready', 'Semi', 1, '', '']); });
+    const v = I.validate(rows, '9000000005', 'Skyline Developers (demo)'); if (v.units.length) I.save(v.units, '9000000005');
+  }
   function ensureDemo(mobile) {
     const d = DEMO[mobile]; if (!d) return;
     const all = users();
@@ -219,6 +234,7 @@ window.KTAuth = (function () {
     if (mobile === '9000000001' || mobile === '9000000002') seedTenancy();
     if (mobile === '9000000003') seedPurchase();
     if (mobile === '9000000006' || mobile === '9000000001') seedCorp(mobile);
+    if (mobile === '9000000005') seedInventory();
     seedSubmissions(mobile);
   }
   function resetDemo() {
@@ -226,10 +242,11 @@ window.KTAuth = (function () {
     write('keetown_tenancies', read('keetown_tenancies', []).filter(t => t.id !== 'tdemo1'));
     write('keetown_purchases', read('keetown_purchases', []).filter(p => p.id !== 'bdemo1'));
     write('keetown_submissions', read('keetown_submissions', []).filter(x => !DEMO[x.mobile]));
+    write('keetown_inventory', read('keetown_inventory', []).filter(x => x.builderMobile !== '9000000005')); write('keetown_teams', read('keetown_teams', []).filter(x => x.builder !== '9000000005'));
     write('keetown_relocations', read('keetown_relocations', []).filter(x => !x.demo)); write('keetown_offices', read('keetown_offices', []).filter(x => !x.demo));
     const s = session(); if (s && DEMO[s.mobile]) logout();
     if (MODE === 'live') return fetch(API + '/demo/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   }
 
-  return { MODE, DEMO_OTP, DEMO_LIST, ensureDemo, resetDemo, flush, hydrate, ROLES, users, saveUser, session, user, validMobile, sendOtp, verifyOtp, startSession, logout, digilockerStart, markVerified, read, write };
+  return { MODE, DEMO_OTP, DEMO_LIST, ensureDemo, resetDemo, flush, hydrate, isStaff, ROLES, users, saveUser, session, user, validMobile, sendOtp, verifyOtp, startSession, logout, digilockerStart, markVerified, read, write };
 })();

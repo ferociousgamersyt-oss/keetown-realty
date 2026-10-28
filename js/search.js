@@ -2,6 +2,7 @@
  * shortlist, compare, saved searches (alerts), recently viewed, and in-feed acquisition prompts. */
 (function () {
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  if (window.KTInv) KTInv.mergePublic();   // builder inventory joins the search
   const { properties, localities, loc, fmt, url } = KT, A = KTAuth;
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };

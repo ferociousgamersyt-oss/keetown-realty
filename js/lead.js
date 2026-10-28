@@ -42,7 +42,7 @@ window.KTLead = (function () {
       ${p ? `<p class="sub">${esc(p.title)} · ${KT.fmt.price(p)}</p>` : ''}
       <div class="step-a"><label class="fl">Your name<input name="name" autocomplete="name" required></label>
       <label class="fl">Mobile number<div class="phone-in"><span>+91</span><input name="mobile" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="98XXXXXXXX"></div></label>
-      <label class="fl">I am<select name="role">${Object.entries(A.ROLES).map(([k, r]) => `<option value="${k}" ${k === role ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select></label>
+      <label class="fl">I am<select name="role">${Object.entries(A.ROLES).filter(([, r]) => !r.partner && !r.hidden).map(([k, r]) => `<option value="${k}" ${k === role ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select></label>
       <label class="chk"><input type="checkbox" name="wa"><span>Send me matching properties on WhatsApp (optional, stop anytime)</span></label>
       <p class="err" role="alert"></p><button class="btn btn-gold wide" type="submit">Send OTP</button>
       <p class="fine">Already registered? <a href="${KT.base}login.html">Log in</a>. By continuing you agree to our Terms &amp; Privacy Notice.</p></div>

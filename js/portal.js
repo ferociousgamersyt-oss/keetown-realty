@@ -8,6 +8,7 @@
   const A = KTAuth, T = KTTen, M = KTMatch, { properties, loc, fmt, url } = KT;
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+  if (window.KTInv) KTInv.mergePublic();
   let u = A.user();
   if (!u) { location.replace('login.html'); return; }
   const R = A.ROLES[u.role], needDL = R.dl === 'required';
@@ -43,11 +44,12 @@
     buyer: [['home', 'Overview'], ['matches', 'Prime matches'], ['purchase', 'My purchase'], ['saved', 'Shortlist'], ['searches', 'Saved searches'], ['visits', 'Visits'], ['settings', 'Settings']],
     owner: [['home', 'Overview'], ['rentals', 'Rentals & rent'], ['mine', 'My listings'], ['settings', 'Settings']],
     seller: [['home', 'Overview'], ['mine', 'My listings'], ['settings', 'Settings']],
-    builder: [['home', 'Overview'], ['mine', 'My projects'], ['settings', 'Settings']],
+    builder: u.profile.staffOf ? [['inventory', 'Inventory'], ['upload', 'Bulk upload'], ['settings', 'Settings']] : [['home', 'Overview'], ['inventory', 'Inventory'], ['upload', 'Bulk upload'], ['team', 'Team'], ['mine', 'My projects'], ['settings', 'Settings']],
+    admin: [['inventory', 'All inventory'], ['upload', 'Upload stock'], ['partners', 'Partner logins'], ['settings', 'Settings']],
     company: [['home', 'Overview'], ['moves', 'Employee moves'], ['newmove', 'Relocate an employee'], ['office', 'Office space'], ['newoffice', 'New office requirement'], ['billing', 'Billing'], ['settings', 'Settings']]
   }[u.role];
   if (window.KTCorp && u.role !== 'company' && KTCorp.relForEmployee(u.mobile).length) TABS.splice(1, 0, ['relocation', 'My relocation']);
-  let tab = (location.hash || '#home').slice(1); if (!TABS.some(t => t[0] === tab)) tab = 'home';
+  let tab = (location.hash || '#home').slice(1); if (!TABS.some(t => t[0] === tab)) tab = TABS[0][0];
   function nav() {
     const n = u.role === 'company' ? { moves: KTCorp.relForCompany(u.mobile).filter(r => r.status === 'Active' && r.stage < KTCorp.STAGES.length - 1).length } : { saved: store().saved.length, matches: verified() ? M.forUser(u, { primeOnly: true }).length : 0, rentals: T.forUser(u.mobile).filter(t => t.ownerMobile === u.mobile).reduce((a, t) => a + T.ledger(t).filter(r => r.status === 'overdue' || r.status === 'reported').length + t.tickets.filter(k => k.status === 'Open').length, 0), myhome: T.inbox(u.mobile).filter(x => x.unread).length };
     $('#pNav').innerHTML = TABS.map(([k, t]) => `<button data-t="${k}" class="${tab === k ? 'on' : ''}" ${tab === k ? 'aria-current="page"' : ''}>${t}${n[k] ? `<span class="n">${n[k]}</span>` : ''}</button>`).join('') + `<a class="p-ext" href="properties.html">Browse properties →</a>`;
@@ -125,6 +127,7 @@
       const openIss = ts.flatMap(t => t.tickets.filter(k => k.status === 'Open').map(k => ({ t, k })));
       body = (openIss.length ? `<div class="banner alert"><p><b>${openIss.length} new issue${openIss.length > 1 ? 's' : ''} from your tenant${openIss.length > 1 ? 's' : ''}.</b> ${openIss.slice(0, 2).map(({ t, k }) => `${esc(k.cat)} (${esc(k.urgency)}) at ${esc(t.title)}`).join(' · ')}</p><button class="btn btn-gold" data-go="rentals">Review now</button></div>` : '') + (ts.length ? '' : `<div class="empty-box"><p><b>Manage your tenancy here.</b> Add your tenant to track rent, send reminders, handle repairs and keep documents in one place.</p><button class="btn btn-gold" data-go="rentals">Set up rentals</button></div>`);
     }
+    if (u.role === 'builder' && I) { const inv = I.forBuilder(actingBuilder()); kpis.push([inv.length.toLocaleString('en-IN'), 'Units in inventory', 'inventory'], [inv.filter(x => x.status === 'Available').length.toLocaleString('en-IN'), 'Available units', 'inventory'], [I.myWorkers(u.mobile).length, 'Team members', 'team']); if (!invList) loadInv(); }
     if (isOwnerSide) { const subs = A.read('keetown_submissions', []).filter(x => x.mobile === u.mobile); kpis.push([subs.length, u.role === 'builder' ? 'Projects submitted' : 'Listings', 'mine']); }
     const code = 'KT' + (+u.mobile * 7).toString(36).toUpperCase(), refs = Object.values(A.users()).filter(x => x.attrib && x.attrib.first && x.attrib.first.ref === code).length;
     return `<h1>Welcome${first ? ', ' + esc(first) : ''}</h1><p class="sub">${R.label} portal</p>${verifyBanner()}
@@ -582,6 +585,136 @@
     });
   };
   if (window.KTCorp) C.loadLocks().then(() => { if (tab === 'relocation') draw(); });
+
+  /* ---------------- builder inventory (builder + their workers) ---------------- */
+  const I = window.KTInv;
+  const isAdmin = () => u.role === 'admin' && A.isStaff();
+  const actingBuilder = () => u.profile.staffOf || u.mobile;   // workers upload on their builder's behalf
+  const actingName = () => isAdmin() ? 'Keetown Realty' : u.profile.staffOf ? (u.profile.company || 'your builder') : (u.profile.company || u.profile.name || 'your company');
+  let invList = null, invQ = '', invProj = '', invStatus = '', invBld = '', invSel = new Set(), invPage = 0;
+  const mineNow = () => isAdmin() ? I.all() : I.forBuilder(actingBuilder());
+  const loadInv = () => I.loadMine().then(() => { invList = mineNow(); if (['inventory', 'home'].includes(tab)) draw(); });
+  const invNow = () => invList || mineNow();
+  const money = (mode, p) => mode === 'rent' ? inr(p) + '/mo' : fmt.lakh(p);
+
+  V.inventory = () => {
+    const list = invNow(), P = I.projects(list), PER = 50;
+    const f = list.filter(x => (!invBld || x.builderName === invBld) && (!invProj || x.project === invProj) && (!invStatus || x.status === invStatus) && (!invQ || (x.project + ' ' + x.tower + ' ' + x.unitNo + ' ' + x.facing).toLowerCase().includes(invQ.toLowerCase())))
+      .sort((a, b) => a.project.localeCompare(b.project) || String(a.tower).localeCompare(String(b.tower)) || String(a.unitNo).localeCompare(String(b.unitNo), undefined, { numeric: true }));
+    const pages = Math.max(1, Math.ceil(f.length / PER)); invPage = Math.min(invPage, pages - 1); const rows = f.slice(invPage * PER, invPage * PER + PER);
+    const under = list.filter(x => x.review === 'Under review').length;
+    if (isAdmin() && !list.length && !invList) loadInv();
+    return `<h1>${isAdmin() ? 'All inventory' : 'Inventory'}</h1><p class="sub">${esc(actingName())} · ${list.length.toLocaleString('en-IN')} units across ${P.length} project${P.length === 1 ? '' : 's'}${u.profile.staffOf ? ' · you are uploading as a team member' : ''}${isAdmin() ? ' · Keetown admin: you can edit, mark sold or remove any unit' : ''}</p>
+      ${under && A.MODE === 'live' ? `<div class="banner soft"><p><b>${under} units are under review.</b> They go live on the website once Keetown verifies your RERA and GST (usually one working day).</p></div>` : ''}
+      <div class="biz-acts"><button class="btn btn-gold" data-go="upload">⬆ Bulk upload</button>${list.length ? '<button class="btn btn-line" id="invCsv">Download all as CSV</button>' : ''}</div>
+      ${P.length ? `<div class="kpis">${P.slice(0, 8).map(p => `<button class="kpi" data-proj="${esc(p.name)}"><b>${p.available.toLocaleString('en-IN')} <small style="font-size:.8rem;color:var(--muted)">/ ${p.units}</small></b><span>${esc(p.name)} · ${esc((KT.loc(p.loc) || {}).name || '')}<br>${[...p.modes].join(' & ')} · ${p.min === p.max ? money([...p.modes][0], p.min) : money([...p.modes][0], p.min) + '–' + money([...p.modes][0], p.max)}</span></button>`).join('')}</div>` : ''}
+      ${list.length ? `<div class="pf2"><input id="invQ" placeholder="Search unit, tower, facing…" value="${esc(invQ)}" style="padding:9px 12px;border-radius:8px;border:1px solid var(--line);min-width:220px">
+        ${isAdmin() ? `<select id="invB"><option value="">All owners &amp; builders</option>${[...new Set(list.map(x => x.builderName || 'Keetown Realty'))].map(b => `<option ${b === invBld ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}
+        <select id="invP"><option value="">All projects</option>${P.map(p => `<option ${p.name === invProj ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+        <select id="invS"><option value="">Any status</option>${I.STATUSES.map(s => `<option ${s === invStatus ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+      <div class="bulkbar" id="bulkbar" ${invSel.size ? '' : 'hidden'}><b><span id="selN">${invSel.size}</span> selected</b>${I.STATUSES.map(s => `<button class="btn btn-line sm" data-bulk="${s}">Mark ${s}</button>`).join('')}<button class="btn btn-line sm danger" data-bulk="delete">Delete</button><button class="link" data-bulk="clear">Clear</button></div>
+      <div class="pc tbl-w"><table class="tbl inv"><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all on this page"></th><th>Project</th><th>Unit</th><th>Type</th><th>Area</th><th>Floor</th><th>Facing</th><th class="r">Price</th><th>Status</th>${A.MODE === 'live' ? '<th>Website</th>' : ''}</tr></thead><tbody>
+        ${rows.map(x => `<tr><td><input type="checkbox" data-sel="${x.id}" ${invSel.has(x.id) ? 'checked' : ''} aria-label="Select ${esc(x.unitNo)}"></td><td>${esc(x.project)}${isAdmin() ? `<br><small>${esc(x.builderName || 'Keetown Realty')}</small>` : ''}</td><td><b>${esc(x.tower ? x.tower + '-' : '')}${esc(x.unitNo)}</b></td><td>${x.beds ? x.beds + ' BHK ' : ''}${esc(x.type)} · ${x.mode}</td><td>${x.area.toLocaleString('en-IN')}</td><td>${esc(x.floor)}</td><td>${esc(x.facing)}</td>
+          <td class="r"><button class="link" data-price="${x.id}" title="Edit price">${money(x.mode, x.price)}</button></td><td><span class="tag ${x.status === 'Available' ? 'live' : x.status === 'Hold' ? 'pend' : ''}">${x.status}</span></td>${A.MODE === 'live' ? `<td>${x.review === 'Live' ? '<span class="tag live">Live</span>' : '<span class="tag pend">Review</span>'}</td>` : ''}</tr>`).join('') || `<tr><td colspan="10">No units match.</td></tr>`}</tbody></table>
+        <div class="pager"><span>${f.length ? invPage * PER + 1 : 0}–${Math.min(f.length, (invPage + 1) * PER)} of ${f.length.toLocaleString('en-IN')}</span><button class="btn btn-line sm" id="pgPrev" ${invPage ? '' : 'disabled'}>← Prev</button><button class="btn btn-line sm" id="pgNext" ${invPage < pages - 1 ? '' : 'disabled'}>Next →</button></div></div>`
+      : `<div class="empty-box"><p><b>No inventory yet.</b> Upload your whole project in one go from Excel or Google Sheets.</p><button class="btn btn-gold" data-go="upload">Start bulk upload</button></div>`}`;
+  };
+  B.inventory = () => {
+    if (!invList) loadInv();
+    const q = $('#invQ'); if (q) { q.oninput = () => { invQ = q.value; invPage = 0; clearTimeout(q.t); q.t = setTimeout(() => { draw(); const n = $('#invQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); }; $('#invP').onchange = e => { invProj = e.target.value; invPage = 0; draw(); }; $('#invS').onchange = e => { invStatus = e.target.value; invPage = 0; draw(); }; const ib = $('#invB'); if (ib) ib.onchange = e => { invBld = e.target.value; invPage = 0; draw(); }; }
+    $$('[data-proj]').forEach(b => b.onclick = () => { invProj = b.dataset.proj; invPage = 0; draw(); });
+    const sync = () => { const bb = $('#bulkbar'); if (bb) { bb.hidden = !invSel.size; $('#selN').textContent = invSel.size; } };
+    $$('[data-sel]').forEach(c => c.onchange = () => { c.checked ? invSel.add(c.dataset.sel) : invSel.delete(c.dataset.sel); sync(); });
+    const sa = $('#selAll'); if (sa) sa.onchange = () => { $$('[data-sel]').forEach(c => { c.checked = sa.checked; sa.checked ? invSel.add(c.dataset.sel) : invSel.delete(c.dataset.sel); }); sync(); };
+    $$('[data-bulk]').forEach(b => b.onclick = () => {
+      const v = b.dataset.bulk, ids = [...invSel]; if (v === 'clear') { invSel.clear(); return draw(); }
+      if (v === 'delete') { if (!confirm(`Delete ${ids.length} units? They disappear from the website.`)) return; I.remove(ids); } else I.setStatus(ids, v);
+      invSel.clear(); invList = mineNow(); draw(); toast(v === 'delete' ? 'Deleted' : `${ids.length} units marked ${v}`);
+    });
+    $$('[data-price]').forEach(b => b.onclick = () => { const x = invNow().find(y => y.id === b.dataset.price), n = prompt(`New price for ${x.unitNo} (${x.mode === 'rent' ? '₹ per month' : '₹ lakh'}):`, x.price); if (n == null) return; const v = parseFloat(n); if (!(v > 0)) return toast('Enter a valid number'); I.setPrice(x.id, v); invList = mineNow(); draw(); toast('Price updated'); });
+    const pp = $('#pgPrev'); if (pp) { pp.onclick = () => { invPage--; draw(); }; $('#pgNext').onclick = () => { invPage++; draw(); }; }
+    const dc = $('#invCsv'); if (dc) dc.onclick = () => { const l = invNow(), h = ['project', 'tower', 'unit_no', 'mode', 'type', 'bedrooms', 'area_sqft', 'floor', 'total_floors', 'facing', 'price', 'locality', 'status', 'possession', 'furnishing', 'parking', 'rera', 'notes'];
+      const c = v => /[",\n]/.test(String(v ?? '')) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v ?? '');
+      const csv = h.join(',') + '\n' + l.map(x => [x.project, x.tower, x.unitNo, x.mode, x.type, x.beds, x.area, x.floor, x.totalFloors, x.facing, x.price, (KT.loc(x.loc) || {}).name, x.status, x.possession, x.furnishing, x.parking, x.rera, x.notes].map(c).join(',')).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'keetown-inventory.csv'; a.click(); };
+  };
+
+  let upState = null;   // { units, errors, warnings, name }
+  V.upload = () => {
+    const s = upState;
+    return `<h1>Bulk upload</h1><p class="sub">Upload hundreds or thousands of units at once. Re-uploading the same project, tower and unit number updates it instead of creating a duplicate.</p>
+      <ol class="up-steps"><li><b>1. Get the template</b><span>One row per unit. Works with Excel and Google Sheets.</span><button class="btn btn-line sm" id="tpl">Download template (CSV)</button></li>
+        <li><b>2. Fill it in</b><span>Sale price in ₹ lakh, rent in ₹ per month. Locality names as on our site.</span><details><summary>See all columns</summary><ul class="cols">${I.COLS.map(c => `<li><code>${c[0]}</code> ${esc(c[1])}${c[2] ? ' <b>*</b>' : ''}</li>`).join('')}</ul></details></li>
+        <li><b>3. Upload or paste</b><span>Save as CSV and drop it below, or copy the cells (with the header row) and paste.</span></li></ol>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a CSV file"><input type="file" id="file" accept=".csv,.tsv,.txt,text/csv" hidden><div data-vis="report" class="drop-vis"></div><b>Drop your CSV here</b><span>or click to choose a file</span></div>
+      <details class="paste"><summary>Or paste from Excel / Google Sheets</summary><textarea id="pasteBox" rows="6" placeholder="Copy your rows including the header row, then paste here"></textarea><button class="btn btn-line sm" id="pasteGo">Check pasted rows</button></details>
+      ${s ? `<div class="pc up-res"><h3>${esc(s.name)} <span class="sub" style="margin:0">${s.units.length + s.errors.length} rows read</span></h3>
+        <div class="kpis"><div class="kpi"><b style="color:var(--teal)">${s.units.length.toLocaleString('en-IN')}</b><span>Ready to import</span></div><div class="kpi"><b style="color:${s.errors.length ? '#b42318' : 'var(--ink)'}">${s.errors.length}</b><span>Rows with problems</span></div><div class="kpi"><b>${s.units.filter(x => invNow().some(y => y.id === x.id)).length}</b><span>Will update existing units</span></div></div>
+        ${s.errors.length ? `<div class="errs"><b>Fix these rows and upload again, or import the good rows now:</b><ul>${s.errors.slice(0, 50).map(e => `<li>Row ${e.row}: ${esc(e.msg)}</li>`).join('')}${s.errors.length > 50 ? `<li>…and ${s.errors.length - 50} more</li>` : ''}</ul></div>` : ''}
+        ${s.warnings.length ? `<p class="fine">${s.warnings.length} note${s.warnings.length > 1 ? 's' : ''}: ${esc(s.warnings.slice(0, 3).map(w => 'row ' + w.row + ' ' + w.msg).join('; '))}</p>` : ''}
+        ${s.units.length ? `<div class="tbl-w"><table class="tbl"><thead><tr><th>Project</th><th>Unit</th><th>Type</th><th>Area</th><th class="r">Price</th><th>Locality</th><th>Status</th></tr></thead><tbody>${s.units.slice(0, 8).map(x => `<tr><td>${esc(x.project)}</td><td>${esc(x.tower ? x.tower + '-' : '')}${esc(x.unitNo)}</td><td>${x.beds ? x.beds + ' BHK ' : ''}${esc(x.type)} · ${x.mode}</td><td>${x.area}</td><td class="r">${money(x.mode, x.price)}</td><td>${esc((KT.loc(x.loc) || {}).name)}</td><td>${x.status}</td></tr>`).join('')}</tbody></table>${s.units.length > 8 ? `<p class="fine">Showing 8 of ${s.units.length.toLocaleString('en-IN')}.</p>` : ''}</div>
+          <div class="acts-row"><button class="btn btn-gold" id="doImport">Import ${s.units.length.toLocaleString('en-IN')} units</button><button class="btn btn-line" id="upReset">Start over</button></div><div class="prog" id="prog" hidden><i></i><span></span></div>` : ''}</div>` : ''}`;
+  };
+  B.upload = () => {
+    if (!invList) loadInv();
+    $('#tpl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([I.templateCsv()], { type: 'text/csv' })); a.download = 'keetown-inventory-template.csv'; a.click(); };
+    const check = (text, name) => { const rows = I.parse(text); if (rows.length > 20001) return toast('Up to 20,000 units per upload. Please split the file.'); upState = { ...I.validate(rows, actingBuilder(), actingName()), name }; draw(); setTimeout(() => { const r = $('.up-res'); r && r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50); };
+    const drop = $('#drop'), file = $('#file');
+    const read = fl => { if (!fl) return; if (fl.size > 15e6) return toast('File is over 15 MB. Please split it.'); if (/\.xlsx?$/i.test(fl.name)) return toast('Please save the sheet as CSV first (File → Save as → CSV).'); const r = new FileReader(); r.onload = () => check(r.result, fl.name); r.readAsText(fl); };
+    drop.onclick = () => file.click(); drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } };
+    file.onchange = () => read(file.files[0]);
+    ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => read(e.dataTransfer.files[0]));
+    $('#pasteGo').onclick = () => { const t = $('#pasteBox').value; if (!t.trim()) return toast('Paste your rows first'); check(t, 'Pasted rows'); };
+    const rs = $('#upReset'); if (rs) rs.onclick = () => { upState = null; draw(); };
+    const imp = $('#doImport'); if (imp) imp.onclick = async () => {
+      imp.disabled = true; const pr = $('#prog'); pr.hidden = false; const units = upState.units, N = 500; let added = 0, updated = 0;
+      for (let i = 0; i < units.length; i += N) {   // save in slices so the page stays responsive and progress is visible
+        const r = I.save(units.slice(i, i + N), u.mobile); added += r.added; updated += r.updated;
+        const p = Math.min(1, (i + N) / units.length); pr.querySelector('i').style.width = (p * 100) + '%'; pr.querySelector('span').textContent = `Saving ${Math.min(units.length, i + N).toLocaleString('en-IN')} of ${units.length.toLocaleString('en-IN')}…`;
+        await new Promise(r => setTimeout(r, 30));
+      }
+      pr.querySelector('span').textContent = 'Sending to Keetown…'; await A.flush();
+      window.KTTrack && KTTrack.event('inventory_uploaded', { units: units.length });
+      upState = null; invList = mineNow(); go('inventory'); toast(`${added.toLocaleString('en-IN')} added, ${updated.toLocaleString('en-IN')} updated`);
+    };
+    window.KTVis && KTVis.mount($('#pMain'));
+  };
+
+  let partners = null;
+  const loadPartners = () => (A.MODE === 'live' ? fetch('/api/staff/partners', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []) : Promise.resolve(Object.values(A.users()).filter(x => x.partner).map(x => ({ mobile: x.mobile, role: x.role, type: x.partner.type, since: x.partner.since, name: x.profile.name, company: x.profile.company }))))
+    .then(l => { partners = l; if (tab === 'partners') draw(); }).catch(() => { partners = []; });
+  const PT = { builder: 'Builder / developer', company: 'Company (relocation / office)', managed: 'Property-management client' };
+  V.partners = () => { if (!partners) loadPartners();
+    return `<h1>Partner logins</h1><p class="sub">After a tie-up, create the login here. The partner then signs in with their own mobile number and OTP; nobody else can create these accounts.</p>
+      <form class="pc" id="ptF" novalidate><h3>New partner</h3><div class="two"><label class="fl">Type<select name="type">${Object.entries(PT).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label><label class="fl">Company / project name<input name="company" maxlength="80"></label></div>
+        <div class="two"><label class="fl">Contact person *<input name="name" maxlength="60" required></label><label class="fl">Their mobile *<input name="mobile" inputmode="numeric" maxlength="10" placeholder="98XXXXXXXX"></label></div>
+        <p class="err" id="ptE" role="alert"></p><button class="btn btn-gold">Create partner login</button></form>
+      <div class="pc"><h3>Partners (${partners ? partners.length : '…'})</h3>${(partners || []).map(p => `<div class="row-i"><div class="grow"><b>${esc(p.company || p.name)}</b><br><small>${esc(PT[p.type] || p.type)} · ${esc(p.name)} · +91 ${esc(p.mobile)}${p.since ? ' · since ' + T.fmtD(p.since) : ''}</small></div>
+        <a class="btn btn-wa sm" target="_blank" rel="noopener" href="https://wa.me/91${esc(p.mobile)}?text=${encodeURIComponent(`Hi ${p.name}, your Keetown Realty partner login is ready. Log in with this mobile number: ${location.origin}/login.html?role=builder`)}">Send login link</a></div>`).join('') || (partners ? '<p class="sub" style="margin:0">No partners yet.</p>' : '<p class="sub" style="margin:0">Loading…</p>')}</div>`; };
+  B.partners = () => {
+    const f = $('#ptF'); f.mobile.oninput = () => f.mobile.value = f.mobile.value.replace(/\D/g, '').slice(0, 10);
+    f.onsubmit = async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.name = d.name.trim();
+      if (!d.name) return $('#ptE').textContent = 'Enter the contact person.'; if (!A.validMobile(d.mobile)) return $('#ptE').textContent = 'Enter a valid 10-digit mobile.';
+      if (A.MODE === 'live') { const r = await fetch('/api/staff/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(d) }); const j = await r.json().catch(() => ({})); if (!r.ok) return $('#ptE').textContent = j.error || 'Could not create the login.'; }
+      else { const all = A.users(), prev = all[d.mobile] || { mobile: d.mobile, created: new Date().toISOString(), consent: {} }; A.saveUser({ ...prev, role: d.type === 'company' ? 'company' : d.type === 'managed' ? 'owner' : 'builder', partner: { type: d.type, since: new Date().toISOString() }, profile: { ...(prev.profile || {}), name: d.name, company: d.company, ...(d.type === 'managed' ? { managed: true } : {}) }, verified: { status: true, method: 'keetown' } }); }
+      partners = null; loadPartners(); f.reset(); toast('Partner login created. Send them the login link.'); };
+  };
+
+  V.team = () => {
+    const ws = I.myWorkers(u.mobile);
+    return `<h1>Team</h1><p class="sub">Add the people who upload and update inventory for ${esc(actingName())}. They log in with their own mobile number and OTP; no shared passwords.</p>
+      <form class="pc" id="tmF" novalidate><h3>Add a team member</h3><div class="two"><label class="fl">Name<input name="n" required maxlength="60"></label><label class="fl">Mobile<input name="m" inputmode="numeric" maxlength="10" placeholder="98XXXXXXXX"></label></div><p class="err" id="tmE" role="alert"></p><button class="btn btn-gold">Add to team</button></form>
+      <div class="pc"><h3>Team members (${ws.length})</h3>${ws.map(w => `<div class="row-i"><div class="grow"><b>${esc(w.workerName)}</b><br><small>+91 ${esc(w.worker)} · ${esc(w.role)} · added ${T.fmtD(w.at)}</small></div>
+        <a class="btn btn-wa sm" target="_blank" rel="noopener" href="https://wa.me/91${esc(w.worker)}?text=${encodeURIComponent(`Hi ${w.workerName}, you can now upload ${actingName()} inventory on Keetown Realty. Log in with this mobile number: ${location.origin}/login.html`)}">Send login link</a><button class="btn btn-line sm danger" data-rmw="${w.id}">Remove</button></div>`).join('') || '<p class="sub" style="margin:0">No team members yet.</p>'}</div>`;
+  };
+  B.team = () => {
+    const f = $('#tmF'); f.m.oninput = () => f.m.value = f.m.value.replace(/\D/g, '').slice(0, 10);
+    f.onsubmit = e => { e.preventDefault(); const n = f.n.value.trim(), m = f.m.value; if (!n) return $('#tmE').textContent = 'Enter a name.'; if (!A.validMobile(m)) return $('#tmE').textContent = 'Enter a valid 10-digit mobile.'; if (m === u.mobile) return $('#tmE').textContent = 'That is your own number.';
+      try { I.addWorker(u, n, m); draw(); toast(n.split(' ')[0] + ' added. Send them the login link.'); } catch (x) { $('#tmE').textContent = x.message; } };
+    $$('[data-rmw]').forEach(b => b.onclick = () => { if (confirm('Remove this team member? They will no longer be able to upload.')) { I.removeWorker(b.dataset.rmw); draw(); } });
+  };
 
   /* ---------------- settings ---------------- */
   V.settings = () => { const c = u.consent || {}; return `<h1>Settings</h1><p class="sub">You control how Keetown contacts you.</p>

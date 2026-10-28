@@ -12,7 +12,7 @@ database_id = "26ca827c-2505-4658-9444-930a8830c4fe"
 # Five public demo accounts (OTP 123456). They can only ever see demo data. Set to "0" to switch off.
 DEMO_ACCOUNTS = "1"
 # Staff mobiles (comma separated) that can open the live leads inbox in Keetown OS.
-STAFF_MOBILES = ""
+STAFF_MOBILES = "6301778084"
 # DigiLocker (MeriPehchaan) client id + redirect, once partner onboarding is approved.
 DIGILOCKER_CLIENT_ID = ""
 DIGILOCKER_REDIRECT = "https://keetown-realty.pages.dev/api/digilocker/callback"

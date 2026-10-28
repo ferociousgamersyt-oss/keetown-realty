@@ -136,7 +136,6 @@ def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots
 <script src="{pre}js/auth.js"></script>
 <script src="{pre}js/track.js"></script>
 <script src="{pre}js/lead.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 <script src="{pre}js/motion.js"></script>
 {js}
 </body>
@@ -306,7 +305,7 @@ def listings_page():
     head = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">\n<link rel="stylesheet" href="css/search.css">'
     return path, shell(title='Property for sale & rent in Hyderabad | Keetown Realty', desc='Search verified apartments, villas, plots and offices for sale and rent across Hyderabad. Filter by locality, budget, BHK, posted by, furnishing and more.',
                        path=path, body=body, pre=pre, cur='properties.html', head=head, jsonld=[crumb_ld([(SITE + '/', 'Home'), (None, 'Properties')])],
-                       scripts=['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', 'js/match.js', 'js/search.js'])
+                       scripts=['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', 'js/inventory.js', 'js/match.js', 'js/search.js'])
 
 RES = ('Apartment', 'Villa', 'Independent house')
 def combo_pages():
@@ -434,7 +433,7 @@ window.KT = (function () {{
   const registrationRate = 0.06;
   const wa = text => 'https://wa.me/' + brand.phone + (text ? '?text=' + encodeURIComponent(text) : '');
   const url = {{
-    property: p => base + 'property/' + p.slug + '.html',
+    property: p => p.href ? base + p.href : base + 'property/' + p.slug + '.html',
     locality: l => base + 'localities/' + l.slug + '.html',
     listings: q => base + 'properties.html' + (q && Object.keys(q).length ? '?' + new URLSearchParams(q) : '')
   }};
@@ -451,7 +450,7 @@ def main():
     write('js/data.js', data_js())
     for p in PROPS: path, html_ = property_page(p); write(path, html_); pages.append(path)
     for l in LOCS: path, html_ = locality_page(l); write(path, html_); pages.append(path)
-    for fn in (listings_page, localities_index, post_page, help_hub): path, html_ = fn(); write(path, html_); pages.append(path)
+    for fn in (listings_page, localities_index, post_page, help_hub, unit_page): path, html_ = fn(); write(path, html_); pages.append(path)
     for c in CLIENTS: path, html_ = client_page(c); write(path, html_); pages.append(path)
     combos = combo_pages(); indexable = set()
     for path, html_ in combos:
@@ -507,6 +506,10 @@ def client_page(c):
     title = f"{_strip(c['title'])} — Keetown Realty"
     return path, shell(title=title, desc=c['sub'], path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
 
+def unit_page():
+    body = '<section class="pg wrap" id="unit" aria-live="polite"><p class="sub" style="padding:80px 0">Loading unit…</p></section>'
+    return 'unit.html', shell(title='Builder unit — Keetown Realty', desc='Unit details from a Keetown partner builder.', path='unit.html', body=body, pre='', cur='properties.html', robots='noindex,follow', scripts=['js/inventory.js', 'js/unit.js'])
+
 def help_hub():
     pre, path = '', 'help.html'
     cards = ''.join(f'<a class="hc2" href="for/{c["slug"]}.html" data-fade><div class="hc2-vis" data-vis="{c["vis"]}"></div><div><p class="hc2-who">{e(c["who"])}</p><h3>{e(c["label"])}</h3><p>{e(c["sub"])}</p><span class="hc2-go">See how we help →</span></div></a>' for c in CLIENTS)
@@ -520,7 +523,7 @@ def help_hub():
     return path, shell(title='How Keetown Realty helps — tenants, buyers, owners, sellers, builders, communities, companies', desc='See how Keetown Realty helps each kind of client in Hyderabad, step by step and in plain words.', path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
 
 # ---------------------------------------------------------------- public deploy folder
-PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers', 'brochure'}
+PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers', 'brochure', 'scripts'}
 def dist():
     """Copy the site to dist/ for Cloudflare Pages: public site + team workspace + promo studio (noindex). Excludes data/, build.py and notes."""
     import shutil

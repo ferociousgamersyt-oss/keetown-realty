@@ -14,10 +14,10 @@
   if (A.MODE === 'demo') $('#demoNote').textContent = 'Demo mode: no SMS is sent — use OTP ' + A.DEMO_OTP + '. DigiLocker verification is simulated.';
   // one-click demo logins, one per portal
   if (A.DEMO_LIST) {
-    const box = $('#demoAccounts'), LBL = { tenant: 'Rental tenant', owner: 'Rental owner', buyer: 'Buyer', seller: 'Seller', builder: 'Builder', company: 'Company / HR' };
+    const box = $('#demoAccounts'), LBL = { tenant: 'Rental tenant', owner: 'Rental owner', buyer: 'Buyer', seller: 'Seller', builder: 'Builder', company: 'Company / HR', admin: 'Keetown admin (local demo)' };
     box.hidden = false;
     box.innerHTML = `<p class="da-h">Try a demo account</p><p class="da-s">Each opens a portal with sample data. OTP for all: <b>${A.DEMO_OTP}</b></p>
-      <ul>${A.DEMO_LIST.map(d => `<li><button type="button" class="da-btn" data-demo="${d.mobile}"><span><b>${LBL[d.role]}</b><small>${d.name} · +91 ${d.mobile.replace(/(\d{5})(\d{5})/, '$1 $2')}</small></span><i aria-hidden="true">→</i></button></li>`).join('')}</ul>
+      <ul>${A.DEMO_LIST.map(d => `<li><button type="button" class="da-btn" data-demo="${d.mobile}"><span><b>${d.mobile === '9000000007' ? 'Builder team member' : LBL[d.role]}</b><small>${d.name} · +91 ${d.mobile.replace(/(\d{5})(\d{5})/, '$1 $2')}</small></span><i aria-hidden="true">→</i></button></li>`).join('')}</ul>
       <button type="button" class="da-reset" id="demoReset">Reset demo accounts</button>`;
     $$('[data-demo]', box).forEach(b => b.onclick = async () => {
       b.disabled = true; b.querySelector('i').textContent = '…';
@@ -39,9 +39,14 @@
   $$('[data-back]').forEach(b => b.onclick = () => show(Math.max(0, step - 1)));
 
   /* ---------- 1 role ---------- */
-  $('#roles').innerHTML = Object.entries(A.ROLES).map(([k, r]) => `<button class="role" data-r="${k}"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg></span><span><b>${r.label}</b><span>${r.blurb}</span></span><em class="${r.dl === 'required' ? '' : 'opt'}">${r.dl === 'required' ? 'DigiLocker verified' : 'Verification optional'}</em></button>`).join('');
+  $('#roles').innerHTML = Object.entries(A.ROLES).filter(([, r]) => !r.partner && !r.hidden).map(([k, r]) => `<button class="role" data-r="${k}"><span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg></span><span><b>${r.label}</b><span>${r.blurb}</span></span><em class="${r.dl === 'required' ? '' : 'opt'}">${r.dl === 'required' ? 'DigiLocker verified' : 'Verification optional'}</em></button>`).join('');
+  // builders/developers, companies and Keetown staff: accounts are created by Keetown after a tie-up
+  $('#roles').insertAdjacentHTML('beforeend', `<div class="partner-box"><div><b>Builders, developers, companies &amp; Keetown team</b><p>Partner logins are created by Keetown after we tie up with you. Already set up? Log in with your registered mobile.</p></div>
+    <div class="pb-acts"><button type="button" class="btn btn-gold sm" data-partner>Partner / team login</button><a class="btn btn-line sm" href="business.html#enquire">Become a partner</a></div></div>`);
+  $('[data-partner]').onclick = () => { role = 'partner'; $('#roleName').textContent = 'Partner / Keetown team'; show(1); };
   $$('.role').forEach(b => b.onclick = () => { role = b.dataset.r; $('#roleName').textContent = A.ROLES[role].label; show(1); });
-  const qr = new URLSearchParams(location.search).get('role'); if (qr && A.ROLES[qr]) { role = qr; $('#roleName').textContent = A.ROLES[role].label; show(1); }
+  let qr = new URLSearchParams(location.search).get('role'); if (qr && A.ROLES[qr] && (A.ROLES[qr].partner || A.ROLES[qr].hidden)) { role = 'partner'; $('#roleName').textContent = 'Partner / Keetown team'; show(1); qr = null; }
+  if (qr && A.ROLES[qr]) { role = qr; $('#roleName').textContent = A.ROLES[role].label; show(1); }
 
   /* ---------- 2 mobile ---------- */
   const mob = $('#mobile');
@@ -76,8 +81,9 @@
     if (code.length < 6) return $('#oErr').textContent = 'Enter all 6 digits.';
     verifying = true;
     try {
-      await A.verifyOtp(mobile, code); A.startSession(mobile);
+      const res = await A.verifyOtp(mobile, code) || {}; A.startSession(mobile);
       const existing = A.users()[mobile];
+      const staff = res.staff || A.isStaff();
       if (existing && !existing.quick) { location.href = 'portal.html'; return; }       // returning user → straight to portal
       const rel = !existing && window.KTCorp ? KTCorp.relForEmployee(mobile)[0] : null;
       if (rel) {   // employee of a client company: account comes pre-filled from HR's request
@@ -89,6 +95,21 @@
         $('#roleName').textContent = A.ROLES[role].label;
         $('.step[data-step="4"]').insertAdjacentHTML('afterbegin', `<div class="ok-banner" style="margin-bottom:14px">Welcome ${esc(rel.employeeName.split(' ')[0])}. ${esc(rel.companyName)} has set up your relocation; your details are already filled in. Just confirm how we may contact you.</div>`);
         show(4); return;
+      }
+      const crew = !existing && window.KTInv ? KTInv.myBuilders(mobile)[0] : null;
+      if (crew) {   // a builder's team member: account comes from the builder's invite
+        role = 'builder';
+        A.saveUser({ mobile, role, created: new Date().toISOString(), sponsor: { builder: crew.builder }, profile: { name: crew.workerName, company: crew.builderName, staffOf: crew.builder, heard: 'Invited by ' + crew.builderName }, consent: {}, verified: { status: false }, attrib: { first: { utm_source: 'builder_team' } } });
+        $('.step[data-step="4"]').insertAdjacentHTML('afterbegin', `<div class="ok-banner" style="margin-bottom:14px">Welcome ${esc(crew.workerName.split(' ')[0])}. ${esc(crew.builderName)} added you to their team. Confirm how we may contact you, then start uploading.</div>`);
+        show(4); return;
+      }
+      if (!existing && staff) {   // Keetown team member: straight to the admin view
+        A.saveUser({ mobile, role: 'admin', created: new Date().toISOString(), profile: { name: 'Keetown team', company: 'Keetown Realty' }, consent: { terms: true, at: new Date().toISOString() }, verified: { status: true, method: 'keetown' } });
+        location.href = 'portal.html#inventory'; return;
+      }
+      if (!existing && (role === 'partner' || (A.ROLES[role] && A.ROLES[role].partner))) {   // not invited yet
+        A.logout(); $('#oErr').innerHTML = `This number isn’t registered as a partner yet. Partner logins are created after a tie-up with Keetown. <a href="business.html#enquire" style="text-decoration:underline">Talk to us</a> or <a href="${KT.wa('Hi Keetown Realty, I would like to set up a partner account (builder / company).')}" target="_blank" rel="noopener" style="text-decoration:underline">WhatsApp us</a>.`;
+        verifying = false; return;
       }
       if (existing && existing.quick) { role = existing.role; $('#roleName').textContent = A.ROLES[role].label; buildProfile(); show(3); return; }   // quick sign-up: finish the full profile
       A.saveUser({ mobile, role, created: new Date().toISOString(), profile: {}, consent: {}, verified: { status: false }, attrib: window.KTTrack ? KTTrack.attribution() : {} });
@@ -118,9 +139,9 @@
     if (mail && !/^\S+@\S+\.\S+$/.test(email)) return $('#cErr').textContent = 'Enter a valid email address for email updates.';
     $('#cErr').textContent = '';
     const u = A.user(); u.consent = { whatsapp: wa, email: mail, emailAddress: mail ? email : '', terms: true, at: new Date().toISOString() }; A.saveUser(u);
-    if (u.sponsor) {   // company-sponsored employee: the employer vouches for them, straight to the relocation plan
-      if (A.MODE === 'demo') A.markVerified(u.mobile, u.profile.name, 'company');
-      A.flush && A.flush(); location.href = 'portal.html#relocation'; return;
+    if (u.sponsor) {   // company-sponsored employee or builder's team member: straight to their work
+      if (A.MODE === 'demo' && u.sponsor.relocation) A.markVerified(u.mobile, u.profile.name, 'company');
+      A.flush && A.flush(); location.href = u.sponsor.builder ? 'portal.html#inventory' : 'portal.html#relocation'; return;
     }
     registerLead(u); prepVerify(u); show(5);
   };

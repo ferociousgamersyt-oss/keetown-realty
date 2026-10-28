@@ -2298,7 +2298,7 @@ window.KT = (function () {
   const registrationRate = 0.06;
   const wa = text => 'https://wa.me/' + brand.phone + (text ? '?text=' + encodeURIComponent(text) : '');
   const url = {
-    property: p => base + 'property/' + p.slug + '.html',
+    property: p => p.href ? base + p.href : base + 'property/' + p.slug + '.html',
     locality: l => base + 'localities/' + l.slug + '.html',
     listings: q => base + 'properties.html' + (q && Object.keys(q).length ? '?' + new URLSearchParams(q) : '')
   };

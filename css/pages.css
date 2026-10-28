@@ -115,3 +115,13 @@ fieldset{border:0;margin:0 0 16px}legend{font-size:.84rem;font-weight:600;color:
 .otp-box{padding:16px;border:1px solid var(--line);border-radius:12px}
 .ok-box{padding:22px;border-radius:12px;background:#e6f4f1;color:#0b4f48}.ok-box h3{color:#0b4f48;margin-bottom:6px}.acts-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:960px){.post-grid{grid-template-columns:1fr}.pscore{position:static;order:-1}.two{grid-template-columns:1fr}.psteps li{font-size:0}.psteps li.cur{font-size:.72rem;flex:3}}
+/* builder unit page */
+.u-grid{display:grid;grid-template-columns:1fr 360px;gap:32px;align-items:start;margin-bottom:40px}
+.u-art{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:16/9}.u-art svg{width:100%;height:100%;display:block}.u-tag{position:absolute;left:14px;top:14px;padding:6px 12px;border-radius:99px;background:#fff;color:var(--ink);font-weight:700;font-size:.8rem}
+.u-h{font-family:var(--serif,'Instrument Serif',serif);font-weight:400;font-size:2.4rem;line-height:1.08;margin:18px 0 6px;color:var(--ink)}.u-h2{font-size:1.25rem;margin:28px 0 12px;color:var(--ink)}
+.u-spec{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.u-spec div{padding:12px;border-radius:12px;background:var(--pearl)}.u-spec small{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}.u-spec b{font-weight:600}
+.u-map{width:100%;height:280px;border:0;border-radius:14px}
+.u-side{position:sticky;top:96px}.u-card{display:grid;gap:10px;padding:22px;border-radius:16px;border:1px solid var(--line);background:#fff;box-shadow:0 30px 60px -44px rgba(15,33,71,.5)}.u-price{font-family:var(--serif,'Instrument Serif',serif);font-size:2.4rem;color:var(--ink)}.u-price small{font-family:Inter,sans-serif;font-size:.9rem;color:var(--muted)}
+.btn.wide{width:100%;justify-content:center}
+.u-sib{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:60px}.u-sib a{display:grid;gap:3px;padding:14px;border-radius:12px;border:1px solid var(--line);background:#fff;transition:border-color .2s,transform .2s}.u-sib a:hover{border-color:var(--gold);transform:translateY(-2px)}.u-sib span{font-size:.84rem;color:var(--muted)}
+@media(max-width:900px){.u-grid{grid-template-columns:1fr}.u-side{position:static}.u-spec{grid-template-columns:repeat(2,1fr)}}

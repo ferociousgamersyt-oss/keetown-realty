@@ -67,6 +67,7 @@
       try {
         await A.verifyOtp(mob, $('#pOtp').value.trim());
         let u = A.users()[mob]; const role = f.querySelector('[name=by]:checked').value === 'Builder' ? 'builder' : mode() === 'rent' ? 'owner' : 'seller';
+        if (!u && role === 'builder') { A.logout(); return err.innerHTML = 'Builder and developer listings come through a partnership with Keetown. <a href="business.html#enquire" style="text-decoration:underline">Talk to us</a> and we’ll set up your partner login for bulk uploads.'; }
         if (!u) { u = { mobile: mob, role, created: new Date().toISOString(), quick: true, profile: { name, locality: val('loc'), areas: [val('loc')] }, consent: { whatsapp: $('#pWa').checked, email: false, terms: true, at: new Date().toISOString() }, verified: { status: false } }; A.saveUser(u); window.KTTrack && KTTrack.event('signup_completed', { role, via: 'post_property' }); }
         A.startSession(mob); publish(A.user());
       } catch (e) { err.textContent = e.message; }

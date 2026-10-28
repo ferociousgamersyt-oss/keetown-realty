@@ -56,3 +56,5 @@
 .da-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;text-align:left;transition:background .2s,border-color .2s}
 .da-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(169,196,238,.6)}.da-btn b{display:block;font-size:.95rem}.da-btn small{color:#b9cadd;font-size:.78rem}.da-btn i{font-style:normal;color:#a9c4ee;font-size:1.1rem}
 .da-reset{margin-top:12px;background:none;border:0;color:#a9c4ee;font-size:.82rem;text-decoration:underline;cursor:pointer;padding:0}
+.partner-box{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:14px;padding:16px 18px;border-radius:12px;border:1px dashed #b7c9e6;background:#f7faff}
+.partner-box b{color:var(--ink)}.partner-box p{font-size:.86rem;color:var(--muted);margin-top:4px;max-width:46ch}.pb-acts{display:flex;gap:8px;flex-wrap:wrap}
