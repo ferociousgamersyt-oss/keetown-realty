@@ -144,7 +144,7 @@ def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots
 
 def card(p, pre):
     l = LOC[p['loc']]
-    return f"""<article class="card"><a class="card-link" href="{pre}property/{p['slug']}.html" aria-label="{e(p['title'])}"></a>
+    return f"""<article class="card" data-pid="{p['id']}"><a class="card-link" href="{pre}property/{p['slug']}.html" aria-label="{e(p['title'])}"></a>
   <div class="art" data-art="{p['id']}"></div><span class="badge">{e(p['badge'])}</span>{'<span class="rera">RERA ✓</span>' if p['rera'] else ''}
   <div class="body"><h3>{e(p['title'])}</h3><div class="where">{e(l['name'])} · {e(p['type'])}</div>
   <div class="price">{price(p)}<small>{per_sqft(p)}</small></div>
@@ -244,8 +244,8 @@ def locality_page(l):
     suits = ''.join(f'<li>{e(SUITS.get(t, t))}</li>' for t in l['tags'])
     fq = faqs(l)
     fq_html = ''.join(f'<details><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in fq)
-    listings = (f'<div class="grid">{"".join(card(p, pre) for p in here)}</div>' if here else
-                f'<div class="empty-box"><p>No public listings in {e(l["name"])} right now. Much of our inventory is off-market, so tell us what you need.</p><a class="btn btn-wa" target="_blank" rel="noopener" href="{wa("Hi Keetown Realty, I am looking for a property in " + l["name"] + ".")}">{WA_SVG} Ask about {e(l["name"])}</a></div>')
+    listings = f'<div data-live="loc={l["id"]}">' + (f'<div class="grid">{"".join(card(p, pre) for p in here)}</div>' if here else
+                f'<div class="empty-box"><p>No public listings in {e(l["name"])} right now. Much of our inventory is off-market, so tell us what you need.</p><a class="btn btn-wa" target="_blank" rel="noopener" href="{wa("Hi Keetown Realty, I am looking for a property in " + l["name"] + ".")}">{WA_SVG} Ask about {e(l["name"])}</a></div>') + '</div>'
     near_html = ''.join(f'<a class="near" href="{m["slug"]}.html"><b>{e(m["name"])}</b><span>{km(l, m):.0f} km · ₹{inr(m["sale"][0])}–{inr(m["sale"][1])}/sq.ft</span></a>' for m in near)
     body = f"""<div class="wrap pg">
 {crumbs([(pre + 'index.html', 'Home'), (pre + 'localities.html', 'Localities'), (None, l['name'])])}
@@ -273,7 +273,7 @@ def locality_page(l):
     ld_faq = {'@context': 'https://schema.org', '@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in fq]}
     ld_place = {'@context': 'https://schema.org', '@type': 'Place', 'name': f"{l['name']}, Hyderabad", 'geo': {'@type': 'GeoCoordinates', 'latitude': l['lat'], 'longitude': l['lng']}, 'address': {'@type': 'PostalAddress', 'addressLocality': l['name'], 'addressRegion': 'Telangana', 'addressCountry': 'IN'}}
     bc = crumb_ld([(SITE + '/', 'Home'), (SITE + '/localities.html', 'Localities'), (None, l['name'])])
-    return path, shell(title=title, desc=desc, path=path, body=body, pre=pre, cur='localities.html', jsonld=[ld_place, ld_faq, bc], scripts=['js/pages.js'])
+    return path, shell(title=title, desc=desc, path=path, body=body, pre=pre, cur='localities.html', jsonld=[ld_place, ld_faq, bc], scripts=['js/inventory.js', 'js/pages.js'])
 
 # ---------------------------------------------------------------- index pages
 def listings_page():
@@ -339,7 +339,7 @@ def combo_pages():
 {crumbs([('../index.html', 'Home'), ('../properties.html' + q.split('&')[0], 'Rent' if intent == 'rent' else 'Buy'), ('../localities/' + l['slug'] + '.html', l['name']), (None, f"{noun} {verb}")])}
 <header class="lst-head"><h1>{e(noun)} {verb} in {e(l['name'])}</h1><p class="sub">{e(intro)}</p>
 <div class="lc-cta"><a class="btn btn-gold" href="../properties.html{q}">Filter &amp; compare these</a><a class="btn btn-line" href="../localities/{l['slug']}.html">{e(l['name'])} guide</a></div></header>
-<section class="pd-sec">{f'<div class="grid">{"".join(card(p, "../") for p in items)}</div>' if items else f'<h2>Nearby options</h2><div class="grid">{"".join(card(p, "../") for p in near)}</div>' if near else '<div class="empty-box"><p>Nothing nearby either right now.</p></div>'}</section>
+<section class="pd-sec">{f'<div data-live="loc={l["id"]}&mode={intent}&res=1{"&beds=" + str(beds) if beds else ""}"><div class="grid">{"".join(card(p, "../") for p in items)}</div></div>' if items else f'<h2>Nearby options</h2><div class="grid">{"".join(card(p, "../") for p in near)}</div>' if near else '<div class="empty-box"><p>Nothing nearby either right now.</p></div>'}</section>
 <div class="gate"><p><b>Didn't find the right one?</b> Save your requirement once. Verified clients get prime matches — including off-market homes — on WhatsApp or email, only if you opt in.</p><a class="btn btn-gold" href="../login.html?role={'tenant' if intent == 'rent' else 'buyer'}">Get matched</a></div>
 <section class="pd-sec"><h2>More searches</h2><div class="nears">{siblings}{other}{nearby_loc}</div></section>
 <section class="pd-sec faq-sec"><h2>{e(l['name'])}: quick answers</h2><div class="faq">{''.join(f'<details><summary>{e(a)}</summary><p>{e(b)}</p></details>' for a, b in fq)}</div></section>
@@ -347,7 +347,7 @@ def combo_pages():
                 ld = [{'@context': 'https://schema.org', '@type': 'ItemList', 'name': title, 'itemListElement': [{'@type': 'ListItem', 'position': i + 1, 'url': f"{SITE}/property/{p['slug']}.html", 'name': p['title']} for i, p in enumerate(items)]},
                       crumb_ld([(SITE + '/', 'Home'), (f"{SITE}/localities/{l['slug']}.html", l['name']), (None, f"{noun} {verb}")])]
                 desc = f"{noun} {verb} in {l['name']}, Hyderabad: verified listings, {money}. Compare prices, BHK, furnishing and connectivity with Keetown Realty."
-                out.append((path, shell(title=title + ' | Keetown Realty', desc=desc, path=path, body=body, pre='../', cur='properties.html', jsonld=ld, scripts=['js/pages.js'], robots='index,follow' if items else 'noindex,follow')))
+                out.append((path, shell(title=title + ' | Keetown Realty', desc=desc, path=path, body=body, pre='../', cur='properties.html', jsonld=ld, scripts=['js/inventory.js', 'js/pages.js'], robots='index,follow' if items else 'noindex,follow')))
     return out
 
 def post_page():

@@ -14,6 +14,28 @@
       el.innerHTML = KTArt(q, +el.dataset.w || 400, +el.dataset.h || 260); el.dataset.painted = 1;
     });
   }
+  /* Listing grids on locality and landing pages refresh from the live inventory: sold units disappear,
+     prices update, and new stock that fits the page appears. */
+  (function liveGrids() {
+    const grids = $$('[data-live]'), cards = $$('[data-pid]'); if (!window.KTInv || (!grids.length && !cards.length)) return;
+    KTInv.mergePublic(); const P = KT.properties, byId = new Map(P.map(p => [p.id, p]));
+    const RES = ['Apartment', 'Villa', 'Independent house'], pre = KT.base || '';
+    const sqft = p => p.unit === 'sq.yd' ? p.area * 9 : p.area;
+    const card = p => { const l = KT.loc(p.loc) || {}; return `<article class="card" data-pid="${p.id}"><a class="card-link" href="${KT.url.property(p)}" aria-label="${esc(p.title)}"></a>
+      <div class="art" data-art="${p.id}"></div><span class="badge">${esc(p.badge || (p.fromBuilder ? 'Direct from builder' : 'Verified'))}</span>${p.rera ? '<span class="rera">RERA ✓</span>' : ''}
+      <div class="body"><h3>${esc(p.title)}</h3><div class="where">${esc(l.name)} · ${esc(p.type)}</div>
+      <div class="price">${KT.fmt.price(p)}<small>${p.mode === 'sale' ? '₹' + Math.round(p.price * 1e5 / sqft(p)).toLocaleString('en-IN') + '/sq.ft' : ''}</small></div>
+      <div class="chips"><span>${p.beds ? p.beds + ' BHK' : esc(p.type)}</span><span>${Number(p.area).toLocaleString('en-IN')} ${p.unit || 'sq.ft'}</span>${p.facing && p.facing !== '—' ? `<span>${esc(p.facing)} facing</span>` : ''}</div></div></article>`; };
+    grids.forEach(g => {
+      const f = Object.fromEntries(new URLSearchParams(g.dataset.live)), keep = g.innerHTML;
+      const list = P.filter(p => p.loc === f.loc && (!f.mode || p.mode === f.mode) && (!f.res || RES.includes(p.type)) && (!f.beds || p.beds === +f.beds))
+        .sort((a, b) => (b.prime - a.prime) || (b.verified - a.verified) || String(b.postedOn || '').localeCompare(String(a.postedOn || '')));
+      if (list.length) g.innerHTML = `<div class="grid">${list.map(card).join('')}</div>`;
+      else if (g.querySelector('.grid')) g.innerHTML = `<div class="empty-box"><p>Everything here has just been rented or sold. New homes come in often; tell us what you need and we will send matches.</p><a class="btn btn-gold" href="${pre}login.html">Get matches</a></div>`;
+      else g.innerHTML = keep;
+    });
+    $$('[data-pid]').forEach(c => { if (c.closest('[data-live]')) return; const p = byId.get(c.dataset.pid); if (!p) c.remove(); else { const pr = c.querySelector('.price'); if (pr && pr.firstChild) pr.firstChild.textContent = KT.fmt.price(p); } });
+  })();
   paintArt();
   // recently viewed (property pages)
   const path = location.pathname.replace(/\.html$/, '');
