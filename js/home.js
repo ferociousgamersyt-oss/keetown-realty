@@ -6,6 +6,7 @@
   const hasGSAP = !!(window.gsap && window.ScrollTrigger); if (hasGSAP) { gsap.registerPlugin(ScrollTrigger); ScrollTrigger.config({ ignoreMobileResize: true }); }
   // always start at the top so pinned/scrubbed sections measure correctly
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; if (!location.hash) scrollTo(0, 0);
+  if (window.KTInv) KTInv.mergePublic();   // homepage collection shows what is actually on the market
   const K = window.KP, H = window.KAds && KAds.H;
   const onScreen = (el, cb) => new IntersectionObserver(([e]) => cb(e.isIntersecting), { rootMargin: '100px' }).observe(el);
 

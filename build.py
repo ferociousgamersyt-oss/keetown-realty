@@ -231,7 +231,7 @@ def property_page(p):
                     'address': {'@type': 'PostalAddress', 'addressLocality': l['name'], 'addressRegion': 'Telangana', 'addressCountry': 'IN'}},
           'offers': {'@type': 'Offer', 'price': round(rupees(p)), 'priceCurrency': 'INR', 'businessFunction': 'http://purl.org/goodrelations/v1#' + ('Sell' if sale else 'LeaseOut')}}
     bc = crumb_ld([(SITE + '/', 'Home'), (SITE + '/properties.html', 'Properties'), (f"{SITE}/localities/{l['slug']}.html", l['name']), (None, p['title'])])
-    return path, shell(title=title, desc=desc, path=path, body=body, pre=pre, cur='properties.html', jsonld=[ld, bc], scripts=['js/pages.js'], og_type='article')
+    return path, shell(title=title, desc=desc, path=path, body=body, pre=pre, cur='properties.html', jsonld=[ld, bc], scripts=['js/inventory.js', 'js/pages.js'], og_type='article')
 
 # ---------------------------------------------------------------- locality page
 def locality_page(l):

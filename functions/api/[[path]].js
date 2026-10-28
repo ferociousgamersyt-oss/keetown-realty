@@ -156,10 +156,11 @@ async function isWorker(env, builder, me) { return !!(await env.DB.prepare("SELE
 const _bcache = new Map();
 async function builderInfo(env, m) {
   if (_bcache.has(m)) return _bcache.get(m);
+  if (isStaff(env, m)) { const v = { verified: true, name: 'Keetown Realty' }; _bcache.set(m, v); return v; }   // Keetown's own stock
   const r = await env.DB.prepare("SELECT data FROM records WHERE col = 'users' AND id = ?").bind(m).first(); const u = r ? JSON.parse(r.data) : {};
   const v = { verified: !!(u.verified && u.verified.status) || (env.DEMO_ACCOUNTS === '1' && DEMO.includes(m)), name: (u.profile && u.profile.company) || '' }; _bcache.set(m, v); return v;
 }
-const PUBLIC_UNIT = ['id', 'project', 'tower', 'unitNo', 'type', 'beds', 'area', 'floor', 'totalFloors', 'facing', 'mode', 'price', 'loc', 'possession', 'furnishing', 'parking', 'amenities', 'notes', 'builderName', 'rera', 'updated'];
+const PUBLIC_UNIT = ['listing', 'id', 'project', 'tower', 'unitNo', 'type', 'beds', 'area', 'floor', 'totalFloors', 'facing', 'mode', 'price', 'loc', 'possession', 'furnishing', 'parking', 'amenities', 'notes', 'builderName', 'rera', 'updated'];
 
 /* ---------- DigiLocker (MeriPehchaan OAuth 2.0 + PKCE) ---------- */
 const DL = 'https://digilocker.meripehchaan.gov.in/public/oauth2/1';

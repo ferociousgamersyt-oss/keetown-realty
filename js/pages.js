@@ -16,7 +16,15 @@
   }
   paintArt();
   // recently viewed (property pages)
-  const here = properties.find(p => location.pathname.endsWith('/property/' + p.slug + '.html'));
+  const path = location.pathname.replace(/\.html$/, '');
+  const here = properties.find(p => p.slug && path.endsWith('/property/' + p.slug));
+  // listings are managed in the inventory: show the live price, or say so if the home has gone off the market
+  if (here && window.KTInv) {
+    const was = here.price; KTInv.mergePublic(); const now = KT.properties.find(p => p.id === here.id);
+    const box = document.querySelector('.pd-head, .pg h1, h1'), note = (cls, html) => box && box.insertAdjacentHTML('afterend', `<div class="${cls}" role="status">${html}</div>`);
+    if (!now) { note('banner alert', '<p><b>This home is no longer on the market.</b> It may have been rented or sold. <a href="' + (KT.base || '') + 'properties.html?intent=' + (here.mode === 'rent' ? 'rent' : 'buy') + '&loc=' + here.loc + '" style="text-decoration:underline">See similar homes →</a></p>'); document.querySelectorAll('[data-contact],[data-act="visit"]').forEach(b => b.setAttribute('disabled', '')); }
+    else if (now.price !== was) note('banner soft', `<p><b>Updated price:</b> ${KT.fmt.price(now)}</p>`);
+  }
   if (here && A) { const r = A.read('keetown_recent', []).filter(id => id !== here.id); r.unshift(here.id); A.write('keetown_recent', r.slice(0, 12)); window.KTTrack && KTTrack.event('view_property', { id: here.id, loc: here.loc }); }
   // gallery: thumbnails swap into the main view
   $$('.g-thumbs > div').forEach(th => th.addEventListener('click', () => { const m = $('.g-main'); const tmp = m.innerHTML; m.innerHTML = th.innerHTML.replace('viewBox="0 0 400 260"', 'viewBox="0 0 400 260"'); th.innerHTML = tmp; }));

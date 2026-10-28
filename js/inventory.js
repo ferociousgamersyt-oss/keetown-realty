@@ -113,6 +113,7 @@ window.KTInv = (function () {
 
   /* ---------- public: live units appear in search and matches ---------- */
   function toProperty(u) {   // same shape as catalog listings so search, filters, maps and matching just work
+    if (u.listing) return { ...u.listing, id: u.id, price: u.price, mode: u.mode, fromInventory: true, builder: u.builderName };   // a Keetown listing moved into the inventory
     const l = KT.loc(u.loc) || {}, bh = u.beds ? u.beds + 'BHK ' : '', uc = u.mode === 'sale' && u.possession && !/ready/i.test(u.possession);
     const furn = /fully/i.test(u.furnishing) ? 'Fully furnished' : /semi/i.test(u.furnishing) ? 'Semi-furnished' : 'Unfurnished';
     const n = parseInt(u.id.slice(2, 8), 36) || 0;
@@ -124,13 +125,17 @@ window.KTInv = (function () {
       lat: (l.lat || 17.43) + ((n % 100) - 50) / 9000, lng: (l.lng || 78.38) + (((n >> 7) % 100) - 50) / 9000,
       builder: u.builderName, project: u.project, tower: u.tower, unitNo: u.unitNo, notes: u.notes, fromBuilder: true };
   }
-  function mergePublic() {   // synchronous so search/matching see builder units on first render
-    let list = [];
+  let merged = false;
+  function mergePublic() {   // synchronous so search/matching see inventory on first render; the inventory is the source of truth
+    if (merged) return; merged = true;
+    let list = null;
     if (A.MODE === 'live') { try { const x = new XMLHttpRequest(); x.open('GET', (KT.base || '/') + 'api/inventory', false); x.send(); if (x.status === 200) list = JSON.parse(x.responseText); } catch (e) {} }
     else list = all().filter(u => u.status === 'Available');
-    const have = new Set(KT.properties.map(p => p.id));
-    list.forEach(u => { if (!have.has(u.id)) KT.properties.push(toProperty(u)); });
-    return list.length;
+    if (!list) return;   // offline: keep the built-in listings
+    const ids = new Set(list.map(u => u.id));
+    if (list.some(u => u.listing)) for (let i = KT.properties.length - 1; i >= 0; i--) if (!ids.has(KT.properties[i].id)) KT.properties.splice(i, 1);   // sold / removed by Keetown
+    const at = new Map(KT.properties.map((p, i) => [p.id, i]));
+    list.forEach(u => { const p = toProperty(u); at.has(u.id) ? (KT.properties[at.get(u.id)] = { ...KT.properties[at.get(u.id)], ...p }) : KT.properties.push(p); });
   }
 
   return { COLS, STATUSES, parse, validate, unitId, all, forBuilder, loadMine, save, setStatus, setPrice, remove, projects, templateCsv, teams, myWorkers, myBuilders, addWorker, removeWorker, toProperty, mergePublic };
