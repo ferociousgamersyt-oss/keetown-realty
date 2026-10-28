@@ -12,20 +12,9 @@
 
   /* ---------------- static wiring ---------------- */
   $('#cPhone').textContent = KT.brand.phoneDisplay; $('#fRera').textContent = KT.brand.reraNo;
-  $$('.hero-facts [data-count]')[1].dataset.count = properties.length;
-  localities.forEach(l => $('#fLoc').add(new Option(l.name, l.id)));
 
   /* ---------------- intro + start ---------------- */
-  const intro = $('#intro'), first = !sessionStorage.getItem('kt_intro');
-  function go() {
-    M.start().then(() => hasGSAP && ScrollTrigger.refresh());
-    if (!reduce) {
-      const h1 = $('.hero2 [data-split]'); M.split(h1); M.revealSplit(h1, 150);
-      $$('.hero2 [data-fade]').forEach((el, i) => M.revealFade(el, 500 + i * 140));
-    }
-  }
-  if (first && !reduce) { sessionStorage.setItem('kt_intro', 1); setTimeout(() => { intro.classList.add('out'); setTimeout(() => intro.classList.add('gone'), 1000); go(); }, 1250); }
-  else { intro.classList.add('gone'); go(); }
+  M.start().then(() => hasGSAP && ScrollTrigger.refresh());   // hero text is visible at once (no intro curtain) for speed and search
 
   /* ---------------- nav ---------------- */
   const nav = $('#hnav'); let lastY = 0;
@@ -33,75 +22,6 @@
   addEventListener('scroll', () => onScroll(scrollY), { passive: true });
   $('#burger').onclick = () => { const o = $('#navLinks').classList.toggle('open'); nav.classList.toggle('menu', o); $('#burger').setAttribute('aria-expanded', o); document.body.style.overflow = o ? 'hidden' : ''; };
   $$('#navLinks a').forEach(a => a.addEventListener('click', () => { $('#navLinks').classList.remove('open'); nav.classList.remove('menu'); document.body.style.overflow = ''; }));
-
-  /* ---------------- finder ---------------- */
-  const f = $('#finder'), thumb = $('.f-thumb'), BUD = { buy: [[50, '₹50 L'], [100, '₹1 Cr'], [200, '₹2 Cr'], [300, '₹3 Cr'], [500, '₹5 Cr']], rent: [[20000, '₹20,000'], [30000, '₹30,000'], [50000, '₹50,000'], [75000, '₹75,000'], [100000, '₹1,00,000']], commercial: [[50, '₹50 L / ₹50k'], [100, '₹1 Cr / ₹1 L'], [500, '₹5 Cr']] };
-  function intent() {
-    const v = f.intent.value, lab = $(`.f-intent input[value="${v}"]`).parentElement;
-    thumb.style.width = lab.offsetWidth + 'px'; thumb.style.transform = `translateX(${lab.offsetLeft - 4}px)`;
-    $('#fBud').innerHTML = '<option value="">Any budget</option>' + BUD[v].map(([a, t]) => `<option value="${a}">Up to ${t}</option>`).join('');
-  }
-  $$('.f-intent input').forEach(i => i.onchange = intent); requestAnimationFrame(intent); addEventListener('load', intent); addEventListener('resize', intent);
-  f.onsubmit = e => { e.preventDefault(); const d = Object.fromEntries(new FormData(f)), q = new URLSearchParams({ intent: d.intent }); if (d.loc) q.set('loc', d.loc); if (d.bmax) q.set('bmax', d.bmax); if (d.beds) q.set('beds', d.beds === '4' ? '4,5' : d.beds); location.href = 'properties.html?' + q; };
-
-  /* ---------------- hero: services by client type ---------------- */
-  (function services() {
-    const S = {
-      tenant: { t: 'Rent a verified home, then live in it without hassle.', l: ['Verified owners and homes', 'Prime matches to your budget and commute', 'Agreement and police verification', 'Rent reminders, UPI pay and HRA receipts', 'Repair requests the owner sees instantly'], search: 'rent', cta: [['login.html?role=tenant', 'Get prime matches']] },
-      buyer: { t: 'Buy with every paper checked before you pay a token.', l: ['Legal-first title and approval checks', 'Planned site visits', 'EMI and 6% registration planned upfront', 'Payment milestones tracked to possession', 'Handover and mutation checklist'], search: 'buy', cta: [['login.html?role=buyer', 'Tell us what you need']] },
-      owner: { t: 'Own it. Don’t worry about it. Complete property management.', l: ['Tenant sourcing, rent collection and renewals', 'Maintenance, repairs and vendor coordination', 'Utilities, tax and documentation support', 'Regular statements, clear visibility', 'NRI concierge with video inspections'], cta: [['management.html', 'See management plans'], ['post-property.html', 'Post property free']] },
-      seller: { t: 'Secondary sales: the right price, verified buyers, clean paperwork.', l: ['Owner-side pricing guidance', 'Buyer matching with verified buyers', 'Legal and documentation coordination', 'Support through to registration', 'Every offer tracked in your portal'], cta: [['post-property.html', 'List your property free'], ['login.html?role=seller', 'Get a price opinion']] },
-      builder: { t: 'Primary sales: developer partnerships that sell launches.', l: ['Project launches and curated inventory', 'RERA-checked listings', 'Verified buyer leads', 'Site visits coordinated', 'End-to-end booking support'], cta: [['login.html?role=builder', 'Partner with us']] },
-      community: { t: 'An exclusive desk for your gated community.', l: ['Exclusive Rental Desk: listing, screening, onboarding', 'Exclusive Secondary Sales Desk for resident homes', 'Controlled, resident-friendly visits', 'Respect for residents, owners and RWAs', 'Property management for owners'], cta: [['#', 'Talk to us about a community desk']], wa: 'Hi Keetown Realty, I would like to discuss an exclusive rental / resale desk for our gated community.' },
-      company: { t: 'Relocate employees and find office space with one partner.', l: ['Employee relocation, door to door', 'Temporary stay and verified homes', 'Managed offices and leased floors', 'Company-leased housing and its management', 'One portal for HR to track every move'], cta: [['business.html', 'Keetown for Business'], ['login.html?role=company', 'Company login']] }
-    };
-    const PAGE = { tenant: 'tenants', buyer: 'buyers', owner: 'owners', seller: 'sellers', builder: 'builders', community: 'communities', company: 'companies' };
-    const tabs = $$('.svc2-tabs [data-c]'), list = $('#svcList'), title = $('#svcT'), cta = $('#svcCta');
-    function show(k, focus) {
-      const d = S[k]; tabs.forEach(b => { const on = b.dataset.c === k; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
-      title.textContent = d.t; list.innerHTML = d.l.map(x => `<li>${esc(x)}</li>`).join('');
-      cta.innerHTML = d.cta.map(([h, t], i) => `<a class="${i || d.search ? 'svc2-ln' : 'f-go svc2-go'}" href="${d.wa && !i ? KT.wa(d.wa) : h}"${d.wa && !i ? ' target="_blank" rel="noopener"' : ''}>${esc(t)}${i || d.search ? ' →' : ''}</a>`).join('') + `<a class="svc2-ln" href="for/${PAGE[k]}.html">How it works, step by step →</a>`;
-      f.hidden = !d.search; $('#svc2').classList.toggle('search', !!d.search);
-      if (d.search) { const r = f.querySelector(`.f-intent input[value="${d.search}"]`); r.checked = true; intent(); }
-      if (!reduce) $('#svcPanel').animate([{ opacity: .3, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.22,1,.36,1)' });
-    }
-    tabs.forEach((b, i) => { b.onclick = () => show(b.dataset.c); b.onkeydown = e => { const n = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (n) { e.preventDefault(); show(tabs[(i + n + tabs.length) % tabs.length].dataset.c, true); } }; });
-    show('tenant');
-  })();
-
-  /* ---------------- hero: living isometric Hyderabad ---------------- */
-  (function hero() {
-    const cv = $('#city'); if (!cv || !H) return; const ctx = cv.getContext('2d');
-    let W, Ht, dpr, mob; const size = () => { dpr = Math.min(1.5, devicePixelRatio || 1); W = cv.clientWidth; Ht = cv.clientHeight; cv.width = W * dpr; cv.height = Ht * dpr; mob = W < 900; snapOk = false; };
-    const snap = document.createElement('canvas'), sc = snap.getContext('2d'); let snapOk = false; size(); addEventListener('resize', size);
-    let tx = 0, ty = 0, mx = 0, my = 0; $('#hero').addEventListener('pointermove', e => { tx = e.clientX / innerWidth - .5; ty = e.clientY / innerHeight - .5; });
-    const P = Array.from({ length: 46 }, (_, i) => { const r = Math.sin(i * 91.7) * 1e4; const q = r - Math.floor(r); return { x: (Math.sin(i * 12.9) + 1) / 2, y: q, s: .4 + ((i * 37) % 10) / 10, v: .004 + q * .01, p: i }; });
-    let vis = true; onScreen($('#hero'), v => { vis = v; if (v) requestAnimationFrame(loop); });
-    const t0 = performance.now(); let last = 0;
-    const geo = () => { const s = Math.min(W / 1440, Ht / 900) * (mob ? .62 : .8); return { s, cx: mob ? W * .62 : W * .77, by: mob ? Ht * .98 : Ht * .84 }; };
-    function drawCity(c, t) { const g = geo(); return H.city(c, g.cx, g.by, g.s, t, .4, { n: 4, seed: 9, tall: 1.25, pin: false }); }
-    function loop(now) {
-      if (!vis) return; if (now - last < 33) { requestAnimationFrame(loop); return; } last = now;
-      const t = reduce ? 6 : (now - t0) / 1000; mx += (tx - mx) * .06; my += (ty - my) * .06;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Ht);
-      // drifting lights
-      P.forEach(p => { const y = ((p.y - t * p.v * .4) % 1 + 1) % 1, x = p.x * W + Math.sin(t * .4 + p.p) * 14 + mx * 20 * p.s; const a = .15 + .35 * (.5 + .5 * Math.sin(t * 1.3 + p.p)); ctx.fillStyle = `rgba(169,196,238,${a * p.s})`; ctx.beginPath(); ctx.arc(x, y * Ht, 1.1 + p.s, 0, 7); ctx.fill(); });
-      const g = geo();
-      // glow under the city
-      const gl = ctx.createRadialGradient(g.cx, g.by - 120 * g.s, 0, g.cx, g.by - 120 * g.s, 520 * g.s); gl.addColorStop(0, 'rgba(54,105,178,.45)'); gl.addColorStop(1, 'rgba(54,105,178,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, W, Ht);
-      ctx.save(); ctx.translate(mx * -26, my * -14); if (mob) ctx.globalAlpha = .42;
-      let pinAt;
-      if (t < 3.2) pinAt = drawCity(ctx, t);           // rising: draw live
-      else {                                            // settled: cache a snapshot, refresh for window twinkle
-        if (!snapOk) { snap.width = cv.width; snap.height = cv.height; sc.setTransform(dpr, 0, 0, dpr, 0, 0); snap.pin = drawCity(sc, t); snapOk = true; }   // draw the settled city once, then reuse it
-        ctx.setTransform(1, 0, 0, 1, mx * -26 * dpr, my * -14 * dpr); ctx.drawImage(snap, 0, 0); ctx.setTransform(dpr, 0, 0, dpr, mx * -26 * dpr, my * -14 * dpr); pinAt = snap.pin;
-      }
-      if (pinAt && t > 1.6) { const k = Math.min(1, (t - 1.6) / .6), bob = Math.sin(t * 2.2) * 9; ctx.beginPath(); ctx.ellipse(pinAt[0], pinAt[1] - 6, 26 * g.s * (1 + .2 * Math.sin(t * 2.2)), 9 * g.s, 0, 0, 7); ctx.fillStyle = 'rgba(169,196,238,.35)'; ctx.fill(); H.pin(ctx, pinAt[0], pinAt[1] - 18 * g.s - bob - (1 - k) * 200, 2.3 * g.s, '#ffffff'); }
-      ctx.restore();
-      if (!reduce) requestAnimationFrame(loop);
-    }
-    requestAnimationFrame(loop);
-  })();
 
   /* ---------------- marquee (speeds up with scroll) ---------------- */
   (function marquee() {
@@ -157,9 +77,9 @@
     }
     if (reduce || !hasGSAP) { draw(0, dur(0) - .5); steps.forEach(s => s.classList.add('on')); return; }
     draw(0, .2);
+    let want = 0, drawn = -1, queued = false;
     ScrollTrigger.create({ trigger: '.story-steps', start: 'top 55%', end: 'bottom 60%', scrub: .6,
       onUpdate: s => { want = s.progress; if (!queued) { queued = true; requestAnimationFrame(paint); } } });
-    let want = 0, drawn = -1, queued = false;
     function paint() { queued = false; if (Math.abs(want - drawn) < .0015) return; drawn = want; const f = Math.min(MAP.length - .001, want * MAP.length), i = Math.floor(f), local = f - i; draw(i, Math.min(dur(i) - .35, .25 + local * 1.25 * dur(i))); }
   })();
 

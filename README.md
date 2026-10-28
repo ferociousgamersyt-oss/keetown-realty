@@ -8,6 +8,13 @@ python3 build.py              # regenerate pages after editing data/catalog.json
 python3 -m http.server 5173   # serve locally → http://localhost:5173
 ```
 
+## Homepage (the page for Google and ads)
+- **Hero** (`index.html` · `css/kh.css` · `js/hero.js`): a live, clickable version of the ad. Seven client tabs (tenants, buyers, owners & NRIs, sellers, builders, companies, communities); each plays a short demo where a cursor uses the product. All text is real HTML for search engines.
+- **How we help** comes straight after: one card per client with a short summary, three points and animated illustrations (`js/visuals.js`), linking to `for/<client>.html`.
+- **"I'm interested"** (`js/interest.js`, on every page): opens automatically for ad links ending `#interested` (or `?interest=rent|buy|manage|sell|build|relocate|community`) and saves a lead with the campaign tags.
+- **The film** (`assets/video/keetown-story.mp4`) and an FAQ with structured data for Google.
+- Ad videos and captions: `promo/CAMPAIGN.md`.
+
 ## What's where
 
 | Area | Pages / files |

@@ -107,10 +107,11 @@ def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots
 <meta name="theme-color" content="#1e4386">
 <link rel="icon" href="{pre}assets/brand/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('motion')</script>
 <link rel="stylesheet" href="{pre}css/site.css">
 <link rel="stylesheet" href="{pre}css/pages.css">
+<link rel="stylesheet" href="{pre}css/kh.css">
 {head}
 {ld}
 </head>
@@ -136,6 +137,7 @@ def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots
 <script src="{pre}js/auth.js"></script>
 <script src="{pre}js/track.js"></script>
 <script src="{pre}js/lead.js"></script>
+<script src="{pre}js/interest.js"></script>
 <script src="{pre}js/motion.js"></script>
 {js}
 </body>

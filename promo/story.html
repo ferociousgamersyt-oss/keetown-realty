@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keetown story ad — preview</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#0b1a33;color:#fff;font-family:Inter,system-ui,sans-serif;display:grid;justify-items:center;gap:14px;padding:24px 12px}
+  canvas{height:min(80vh,960px);width:auto;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.5);background:#fff}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}button{font:600 14px Inter;padding:10px 16px;border-radius:10px;border:0;cursor:pointer;background:#fff;color:#1e4386}button.on{background:#a9c4ee}
+  input[type=range]{width:min(600px,90vw)}p{opacity:.7;font-size:13px;max-width:60ch;text-align:center}
+</style>
+</head>
+<body>
+<div class="bar"><button data-a="9:16" class="on">9:16 Reels / Stories</button><button data-a="16:9">16:9 YouTube / web</button><button data-a="4:5">4:5 Feed</button><button id="play">Pause</button></div>
+<canvas id="cv"></canvas>
+<input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Scrub">
+<p>Rendered MP4s are in <b>promo/out/story/</b>. Pair with the platform's "I'm interested" / "Learn more" button pointing to the homepage link with <code>#interested</code>.</p>
+
+<script src="story.js"></script>
+<script>
+(async function () {
+  const cv = document.getElementById('cv'), scrub = document.getElementById('scrub'); let aspect = new URLSearchParams(location.search).get('aspect') || '9:16', playing = !/render/.test(location.search), t0 = performance.now(), off = 0;
+  async function set(a) { aspect = a; await KS.prepare(cv, a); document.querySelectorAll('[data-a]').forEach(b => b.classList.toggle('on', b.dataset.a === a)); }
+  await set(aspect); window.KC_READY = true;
+  document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => set(b.dataset.a));
+  document.getElementById('play').onclick = e => { playing = !playing; e.target.textContent = playing ? 'Pause' : 'Play'; t0 = performance.now(); off = scrub.value / 1000 * KS.DURATION; };
+  scrub.oninput = () => { playing = false; KS.render(scrub.value / 1000 * KS.DURATION); };
+  (function loop(now) { if (playing) { const t = (off + (now - t0) / 1000) % KS.DURATION; KS.render(t); scrub.value = t / KS.DURATION * 1000; } requestAnimationFrame(loop); })(performance.now());
+})();
+</script>
+</body>
+</html>
