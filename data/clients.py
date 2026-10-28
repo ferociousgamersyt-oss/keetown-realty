@@ -38,7 +38,7 @@ CLIENTS = [
           ('What does "legal-first" mean?', 'We check ownership, approvals and RERA status before you pay a token, not after.'),
           ('Can you help with a home loan?', 'Yes. We plan the EMI with you and coordinate with your bank for the paperwork.')]),
 
-  dict(slug='owners', label='Owners & NRIs', who='I own a property to rent out', vis='report', role='owner',
+  dict(slug='owners', label='Property management', who='I own a property (owners & NRIs)', vis='report', role='owner',
     title='Own it. <em>Don’t worry about it.</em>',
     sub='Complete property management: the right tenant, rent on time, repairs handled and clear reports, even if you live abroad.',
     cta=('management.html#plans', 'See management plans'), cta2=('post-property.html', 'Post your property free'),

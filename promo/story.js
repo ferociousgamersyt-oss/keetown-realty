@@ -9,7 +9,7 @@ window.KS = (function () {
     { id: 'problem', d: 6.0 }, { id: 'brand', d: 3.4 },
     { id: 'tenants', d: 6.0, tag: 'For tenants', mode: 'replace', h1: [['Homes'], ['that', 'fit.']], h2: [['Verified.'], ['Matched.', 1]] },
     { id: 'buyers', d: 6.0, tag: 'For buyers', h1: [['Papers', 'first.']], h2: [['Token', 1, 'later.', 1]] },
-    { id: 'owners', d: 6.0, tag: 'For owners & NRIs', h1: [['Rent', 'on', 'time.']], h2: [['Home', 1], ['cared', 1, 'for.', 1]] },
+    { id: 'owners', d: 6.0, tag: 'Property management', h1: [['Rent', 'on', 'time.']], h2: [['Home', 1], ['cared', 1, 'for.', 1]] },
     { id: 'builders', d: 6.0, tag: 'For builders', h1: [['Upload', 'once.']], h2: [['Sell', 1, 'faster.', 1]] },
     { id: 'companies', d: 6.0, tag: 'For companies', h1: [['Relocate'], ['the', 'team.']], h2: [['Not', 1, 'the', 1], ['stress.', 1]] },
     { id: 'house', d: 6.0 }, { id: 'end', d: 5.2 }
@@ -210,7 +210,7 @@ window.KS = (function () {
     const out = io(seg(t, 5.45, .55));
     const [hs, lh] = fit(2); headline([['Listings'], ['here.']], t, .2, 1.8, hs, lh);
     headline([['Brokers…'], ['everywhere.', 1]], t, 2.35, 5.45, hs, lh);
-    const items = [['Is it still available?', 20, 0], ['Owner not picking up', 400, 40], ['Pay the token first?', 0, 330], ['Broker fee = 2 months', 420, 360], ['Are the papers clear?', 40, 440], ['Rent reminder… again', 400, 470], ['Who fixes the leak?', 110, 545], ['Photos look fake', 470, 560]];
+    const items = [['Is it still available?', 20, 0], ['Owner not picking up', 400, 40], ['Pay the token first?', 0, 330], ['Broker fee = 2 months', 420, 360], ['Are the papers clear?', 40, 440], ['Rent reminder… again', 400, 470], ['Who manages my flat?', 110, 545], ['Photos look fake', 470, 560]];
     stage(() => {
       ctx.save(); ctx.translate(380, 300); ctx.scale(1 - out * .6, 1 - out * .6); ctx.globalAlpha *= 1 - out; ctx.translate(-380, -300);
       [[40, 100, 'r'], [440, 140, 'l']].forEach(([x, y], i) => pop(x + 120, y + 90, seg(t, .3 + i * .3, .5), () => { card(x, y, 250, 190, { r: 18, sh: 5 }); houseIcon(x + 16, y + 16, 218, 100); text(i ? '2BHK · ₹38k?' : '3BHK · call for price', x + 18, y + 150, { w: 700, s: 18 }); text('Posted 4 months ago', x + 18, y + 174, { w: 500, s: 13, c: '#8a94a6' }); }, i ? .1 : -.08));
@@ -240,20 +240,25 @@ window.KS = (function () {
     headline([['It', 'all', 'runs'], ['on', 'one'], ['platform.', 1]], t, .1, 2.9, h3, l3);
     headline(ASP === '16:9' ? [['Verified', 'people.'], ['Clear', 'papers.'], ['No', 1], ['surprises.', 1]] : [['Verified', 'people.'], ['Clear', 'papers.'], ['No', 1, 'surprises.', 1]], t, 3.4, 99, h4 * (ASP === '16:9' ? .86 : 1), l4 * (ASP === '16:9' ? .86 : 1));
     stage(() => {
-      const hp = out3(seg(t, 0, 1.3)); ctx.save(); ctx.strokeStyle = A; ctx.lineWidth = 7; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      const pts = [[340, 590], [20, 590], [20, 175], [-10, 175], [380, 0], [770, 175], [740, 175], [740, 590], [420, 590], [420, 545], [340, 545], [340, 590]];
-      let total = 0; const segs = []; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(l); total += l; }
-      let left = total * hp; ctx.beginPath(); ctx.moveTo(...pts[0]); for (let i = 1; i < pts.length && left > 0; i++) { const f = Math.min(1, left / segs[i - 1]); ctx.lineTo(lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)); left -= segs[i - 1]; } ctx.stroke(); ctx.restore();
-      // a line from the Keetown mark down the middle of the house to the door, touching every client
-      const lp = seg(t, .9, 2.1), N = 220, upto = Math.floor(N * lp); ctx.save(); ctx.strokeStyle = A; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath();
-      for (let i = 0; i <= upto; i++) { const u = i / N, y = lerp(168, 545, u), x = 380 + Math.sin(u * Math.PI * 6) * 14 + (u > .96 ? 0 : 0); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-      ctx.stroke(); [[263], [393], [523]].forEach(([y], k) => { if (lp > (y - 168) / 377) { ctx.fillStyle = WHITE; ctx.beginPath(); ctx.arc(380 + Math.sin((y - 168) / 377 * Math.PI * 6) * 14, y, 8, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.stroke(); } }); ctx.restore();
-      pop(380, 120, seg(t, .5, .6), () => { ctx.shadowColor = 'rgba(30,67,134,.3)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; ctx.beginPath(); ctx.arc(380, 120, 46, 0, 7); ctx.fillStyle = WHITE; ctx.fill(); ctx.shadowColor = 'transparent'; if (mark) { const h = 54, w = h * mark.width / mark.height; ctx.drawImage(mark, 380 - w / 2, 120 - h / 2, w, h); } });
-      const slots = [[0, 200, 'tenants', 'Verified. Matched.'], [1, 200, 'buyers', 'Papers first.'], [0, 330, 'owners', 'Rent on time.'], [1, 330, 'builders', 'Upload once.'], [0, 460, 'companies', 'Relocate the team.'], [1, 460, 'communities', 'Exclusive desks.']];
-      slots.forEach(([col, y, id, label], i) => { const w = 150, h = w * 600 / 760, x = col ? 590 : 30, lx = col ? 566 : 196, al = col ? 'right' : 'left';
-        pop(x + 80, y + 60, seg(t, 1.1 + i * .28, .5), () => { card(x, y, w + 10, h + 10, { r: 12, sh: 4, lw: 2.5 });
-          if (snaps[id]) ctx.drawImage(snaps[id], x + 5, y + 5, w, h); else { ctx.save(); ctx.translate(x + 5, y + 5); [[10, 40], [56, 30], [102, 40]].forEach(([hx, hy]) => houseIcon(hx, hy, 40, 64)); ctx.restore(); }
-          text((id === 'communities' ? 'For gated communities' : SC.find(s => s.id === id).tag).toUpperCase(), lx, y + 52, { w: 800, s: 12, c: A, al }); text(label, lx, y + 80, { w: 800, s: 18, f: DISP, al }); }); });
+      // one platform: the Keetown mark in the middle, every client connected to it (no house)
+      const W2 = 200, H2 = W2 * 600 / 760, cx = 380, cy = 300;
+      const slots = [[20, 0, 'tenants', 'Verified. Matched.'], [280, 0, 'buyers', 'Papers first.'], [540, 0, 'owners', 'Rent on time.'],
+        [20, 392, 'builders', 'Upload once.'], [280, 392, 'companies', 'Relocate the team.'], [540, 392, 'communities', 'Exclusive desks.']];
+      slots.forEach(([x, y, id], i) => {   // connector lines grow out of the centre
+        const p = out3(seg(t, .5 + i * .12, .7)); if (p <= 0) return; const top = y === 0, ex = x + W2 / 2, ey = top ? y + H2 + 70 : y - 10;
+        ctx.save(); ctx.strokeStyle = 'rgba(47,95,179,.55)'; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.setLineDash([2, 10]); ctx.beginPath();
+        const mx = lerp(cx, ex, .5), my = lerp(cy, ey, .5) + (top ? -20 : 20); for (let k = 0; k <= 30 * p; k++) { const u = k / 30, x1 = (1 - u) * (1 - u) * cx + 2 * (1 - u) * u * mx + u * u * ex, y1 = (1 - u) * (1 - u) * cy + 2 * (1 - u) * u * my + u * u * ey; k ? ctx.lineTo(x1, y1) : ctx.moveTo(x1, y1); }
+        ctx.stroke(); ctx.restore();
+        if (p >= 1) { ctx.fillStyle = A; ctx.beginPath(); ctx.arc(ex, ey, 6, 0, 7); ctx.fill(); }
+      });
+      // soft pulse behind the centre mark
+      const pul = (t * .8) % 1; ctx.save(); ctx.globalAlpha = .35 * (1 - pul) * clamp(seg(t, .3, .4)); ctx.fillStyle = SKY; ctx.beginPath(); ctx.arc(cx, cy, 58 + pul * 60, 0, 7); ctx.fill(); ctx.restore();
+      pop(cx, cy, seg(t, .2, .6), () => { ctx.shadowColor = 'rgba(30,67,134,.3)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10; ctx.beginPath(); ctx.arc(cx, cy, 62, 0, 7); ctx.fillStyle = WHITE; ctx.fill(); ctx.shadowColor = 'transparent'; if (mark) { const h = 72, w = h * mark.width / mark.height; ctx.drawImage(mark, cx - w / 2, cy - h / 2, w, h); } });
+      slots.forEach(([x, y, id, label], i) => pop(x + W2 / 2, y + H2 / 2, seg(t, .9 + i * .18, .5), () => {
+        card(x, y, W2, H2, { r: 14, sh: 5 }); if (snaps[id]) { ctx.save(); path(x + 4, y + 4, W2 - 8, H2 - 8, 12); ctx.clip(); ctx.drawImage(snaps[id], x + 4, y + 4, W2 - 8, H2 - 8); ctx.restore(); }
+        else { ctx.save(); ctx.translate(x + 20, y + 30); [[0, 20], [56, 6], [112, 20]].forEach(([hx, hy]) => houseIcon(hx, hy, 46, 72)); ctx.restore(); }
+        const ly = y === 0 ? y + H2 + 26 : y + H2 + 26; text((id === 'communities' ? 'For communities' : SC.find(s => s.id === id).tag).toUpperCase(), x + W2 / 2, ly, { w: 800, s: 12, c: A, al: 'center' });
+        text(label, x + W2 / 2, ly + 24, { w: 800, s: 18, f: DISP, al: 'center' }); }, (i % 2 ? .06 : -.06)));
     });
   }
   function end(t) {
@@ -261,9 +266,9 @@ window.KS = (function () {
     pop(W / 2, top + 50, seg(t, 0, .6), () => { if (logo) { const h = 110 * s, w = h * logoW; ctx.drawImage(logo, W / 2 - w / 2, top, w, h); } });
     headline([['Interested?', 1]], t, .35, 99, 150 * s, 0, W / 2, top + 290 * s, 'center');
     rise(seg(t, .9, .5), 20, () => text('Tell us what you need. We call you back within a working day.', W / 2, top + 362 * s, { w: 600, s: (ASP === '16:9' ? 34 : 30) * s, al: 'center', c: '#45536a' }));
-    const chips = ['Rent', 'Buy', 'Manage', 'Sell', 'Build', 'Relocate'], cols = ASP === '16:9' ? 6 : 3, cw = 230 * s, gx = 22, ch = 84 * s, x0 = W / 2 - (cols * cw + (cols - 1) * gx) / 2, y0 = top + 430 * s;
-    chips.forEach((label, i) => pop(x0 + (i % cols) * (cw + gx) + cw / 2, y0 + Math.floor(i / cols) * (ch + 22) + ch / 2, seg(t, 1.1 + i * .1, .5), () => {
-      const x = x0 + (i % cols) * (cw + gx), y = y0 + Math.floor(i / cols) * (ch + 22); card(x, y, cw, ch, { r: ch / 2, sh: 5, fill: i % 2 ? WHITE : SOFT }); text(label, x + cw / 2, y + ch / 2 + 2, { w: 800, s: 34 * s, f: DISP, al: 'center', bl: 'middle' }); }, (rnd(i + 3) - .5) * .4));
+    const chips = ['Rent', 'Buy', 'Sell', 'Property management', 'Build', 'Relocate'], ch = 84 * s, gx = 22, rows = ASP === '16:9' ? [chips] : [chips.slice(0, 3), chips.slice(3)];
+    let n = 0; rows.forEach((row, r) => { ctx.font = F(800, 34 * s, DISP); const ws = row.map(l => Math.max(170 * s, ctx.measureText(l).width + 64 * s)), tot = ws.reduce((a, b) => a + b, 0) + gx * (row.length - 1); let x = W / 2 - tot / 2; const y = top + 430 * s + r * (ch + 22);
+      row.forEach((label, k) => { const cw = ws[k], i = n++, cx = x; pop(cx + cw / 2, y + ch / 2, seg(t, 1.1 + i * .1, .5), () => { card(cx, y, cw, ch, { r: ch / 2, sh: 5, fill: label === 'Property management' ? '#e2f6ee' : i % 2 ? WHITE : SOFT }); text(label, cx + cw / 2, y + ch / 2 + 2, { w: 800, s: 34 * s, f: DISP, al: 'center', bl: 'middle' }); }, (rnd(i + 3) - .5) * .4); x += cw + gx; }); });
     const ay = ASP === '16:9' ? H - 230 : ASP === '4:5' ? H - 300 : H - 640, bob = Math.abs(Math.sin(t * 4)) * 20, ap = seg(t, 2.0, .5);
     rise(ap, 30, () => {
       ctx.font = F(800, 48 * s, DISP); const a = 'Tap ', b = '“I’m interested”', c2 = ' below', wa = ctx.measureText(a).width, wb = ctx.measureText(b).width, wc = ctx.measureText(c2).width, x = W / 2 - (wa + wb + wc) / 2;

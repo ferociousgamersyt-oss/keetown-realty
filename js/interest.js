@@ -2,7 +2,7 @@
  * Opens automatically for links ending in #interested (ad destination URL), or ?interest=rent|buy|manage|sell|build|relocate|community.
  * Saves a lead (with UTM / click-ID attribution) for the Keetown team and offers WhatsApp as a shortcut. */
 window.KTInterest = (function () {
-  const OPTS = [['rent', 'Rent a home', 'tenants'], ['buy', 'Buy a home', 'buyers'], ['manage', 'Manage my property', 'owners'], ['sell', 'Sell my property', 'sellers'],
+  const OPTS = [['rent', 'Rent a home', 'tenants'], ['buy', 'Buy a home', 'buyers'], ['manage', 'Property management', 'owners'], ['sell', 'Sell my property', 'sellers'],
     ['build', 'Builder / developer', 'builders'], ['relocate', 'Relocate employees / office space', 'companies'], ['community', 'Gated community desk', 'communities']];
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const base = (window.KT && KT.base) || '';
