@@ -1,7 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /os/
-Disallow: /portal.html
+Disallow: /portal
+Disallow: /login
 Disallow: /promo/
 
 Sitemap: https://keetown-realty.pages.dev/sitemap.xml

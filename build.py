@@ -452,8 +452,10 @@ def main():
     write('js/data.js', data_js())
     for p in PROPS: path, html_ = property_page(p); write(path, html_); pages.append(path)
     for l in LOCS: path, html_ = locality_page(l); write(path, html_); pages.append(path)
-    for fn in (listings_page, localities_index, post_page, help_hub, unit_page): path, html_ = fn(); write(path, html_); pages.append(path)
-    for c in CLIENTS: path, html_ = client_page(c); write(path, html_); pages.append(path)
+    for fn in (listings_page, localities_index, post_page): path, html_ = fn(); write(path, html_); pages.append(path)
+    public = []
+    for fn in (home_page, about_page): path, html_ = fn(); write(path, html_); public.append(path)
+    for c in CLIENTS: path, html_ = client_page2(c); write(path, html_); pages.append(path); public.append(path)
     combos = combo_pages(); indexable = set()
     for path, html_ in combos:
         write(path, html_); pages.append(path)
@@ -463,69 +465,154 @@ def main():
     for d in ('property', 'localities', 'in', 'for'):
         for f in (ROOT / d).glob('*.html'):
             if f'{d}/{f.name}' not in keep: f.unlink()
-    urls = ['', 'properties.html', 'localities.html', 'management.html', 'business.html', 'post-property.html'] + [p for p in pages if p not in ('properties.html', 'localities.html', 'post-property.html') and (not p.startswith('in/') or p in indexable)]
+    urls = ['' if p == 'index.html' else p for p in public]   # the public site is only 'what we do'; listings pages stay offline until ready
     write('sitemap.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
           ''.join(f'  <url><loc>{SITE}/{u}</loc><lastmod>{TODAY}</lastmod></url>\n' for u in urls) + '</urlset>\n')
-    write('robots.txt', f"User-agent: *\nAllow: /\nDisallow: /os/\nDisallow: /portal.html\nDisallow: /promo/\n\nSitemap: {SITE}/sitemap.xml\n")
+    write('robots.txt', f"User-agent: *\nAllow: /\nDisallow: /os/\nDisallow: /portal\nDisallow: /login\nDisallow: /promo/\n\nSitemap: {SITE}/sitemap.xml\n")
     print(f"built js/data.js, {len(PROPS)} property pages, {len(LOCS)} locality guides, {len(combos)} search landing pages ({len(indexable)} indexable), properties.html, localities.html, post-property.html, sitemap.xml ({len(urls)} urls), robots.txt")
 
-# ---------------------------------------------------------------- "how we help" pages (one per client type)
+# ---------------------------------------------------------------- public site: what we do, for each client
 import importlib.util as _ilu
 _spec = _ilu.spec_from_file_location('clients', ROOT / 'data' / 'clients.py'); _cm = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_cm)
 CLIENTS = _cm.CLIENTS
-HELP_HEAD = '<link rel="stylesheet" href="{pre}css/help.css">'
+BYSLUG = {c['slug']: c for c in CLIENTS}
+NAV2 = [('for/tenants.html', 'Rent'), ('for/buyers.html', 'Buy'), ('for/sellers.html', 'Sell'), ('for/owners.html', 'Property management'),
+        ('for/builders.html', 'Builders'), ('for/companies.html', 'Companies'), ('for/communities.html', 'Communities'), ('about.html', 'About')]
+HOME = ROOT / 'data' / 'home'
 
 def _strip(t): return re.sub(r'<[^>]+>', '', t)
 
-def client_page(c):
+def shell2(*, title, desc, path, body, pre, jsonld='', scripts=()):
+    links = ''.join(f'<a href="{pre}{h}">{t}</a>' for h, t in NAV2)
+    js = ''.join(f'<script src="{pre}{s}"></script>' for s in scripts)
+    return f"""<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{e(title)}</title>
+<meta name="description" content="{e(desc)}">
+<link rel="canonical" href="{SITE}/{path if path != 'index.html' else ''}">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Keetown Realty"><meta property="og:title" content="{e(title)}"><meta property="og:description" content="{e(desc)}"><meta property="og:url" content="{SITE}/{path}"><meta property="og:image" content="{SITE}/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#2f5fb3">
+<link rel="icon" href="{pre}assets/brand/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('motion')</script>
+<link rel="stylesheet" href="{pre}css/site2.css">
+<link rel="stylesheet" href="{pre}css/kh.css">
+{jsonld}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="tb"><div class="tb-in">
+  <a class="tb-logo" href="{pre}index.html" aria-label="Keetown Realty home"><img src="{pre}assets/brand/logo.svg" alt="Keetown Realty" width="139" height="56"></a>
+  <button class="tb-burger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  <nav class="tb-links" aria-label="Main">{links}<button class="kbtn tb-cta" type="button" data-interest>I’m interested</button></nav>
+</div></header>
+<main id="main">
+{body}
+</main>
+<footer class="ft"><div class="ft-in">
+  <div><img src="{pre}assets/brand/logo-white.svg" alt="Keetown Realty" width="129" height="52"><p>One team for every property need in Hyderabad. Connecting you to exceptional spaces.</p></div>
+  <div><h4>What we do</h4>{''.join(f'<a href="{pre}{h}">{t}</a>' for h, t in NAV2[:7])}</div>
+  <div><h4>Talk to us</h4><a href="tel:+{B['phone']}">{e(B['phoneDisplay'])}</a><a href="mailto:{e(B['email'])}">{e(B['email'])}</a><a href="#" data-wa="Hi Keetown Realty, I have a question.">WhatsApp</a><a href="{pre}about.html">About Keetown</a><p>Hyderabad, Telangana</p></div>
+  <p class="fine">© Keetown Realty. Services and timelines are confirmed in writing before you commit.</p>
+</div></footer>
+<a class="fab" id="fab" href="#" target="_blank" rel="noopener" aria-label="Chat with Keetown Realty on WhatsApp">{WA_SVG}<span>Chat on WhatsApp</span></a>
+<script src="{pre}js/data.js"></script>
+<script src="{pre}js/auth.js"></script>
+<script src="{pre}js/track.js"></script>
+<script src="{pre}js/interest.js"></script>
+<script src="{pre}js/visuals.js"></script>
+{js}
+<script src="{pre}js/site2.js"></script>
+</body>
+</html>
+"""
+
+def cta_band(pre, interest='', title='Tell us what you need.', text='A real person calls you back within a working day.'):
+    return f"""<section class="sec3"><div class="ctab rv"><div><h2>{e(title)}</h2><p>{e(text)}</p></div>
+  <div class="ctab-acts"><button class="kbtn" type="button" data-interest="{interest}">I’m interested</button><a class="kbtn ghost" href="tel:+{B['phone']}">Call {e(B['phoneDisplay'])}</a></div></div></section>"""
+
+def home_page():
+    read = lambda n: (HOME / f'{n}.html').read_text()
+    how = [('search', 'Tell us what you need', 'One short call or form: what, where, budget and when.'), ('verify', 'We verify and check', 'People are identity-checked and papers are checked before any money moves.'),
+           ('keys', 'We handle the work', 'Visits, negotiation, agreements, tenants, repairs: one team does it.'), ('report', 'We stay with you', 'Rent, repairs, renewals and updates long after the keys.')]
+    why = [('desk', 'Integrated', 'Sales, rentals, property management and relocation in one place.'), ('receipt', 'Transparent', 'Clear processes, written terms and updates you can see.'),
+           ('verify', 'Verified', 'Every party identity-checked; legal checks before any token.'), ('community', 'Community-first', 'Respect for residents, owners and RWAs.')]
+    tiles = lambda items, cls='': ''.join(f'<article class="tile rv {cls}" style="--rd:{i * .08}s"><span class="num-badge">{i + 1}</span><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for i, (v, t, d) in enumerate(items))
+    areas = ''.join(f'<span>{e(l["name"])}</span>' for l in LOCS)
+    body = f"""{read('hero')}
+
+{read('howwehelp')}
+
+<section class="sec3 tint" id="how"><div class="wrap3"><p class="eyeb">How we work</p><h2 class="h2c">Four simple steps. <span>Same for everyone.</span></h2>
+  <div class="grid3 g4">{tiles(how)}</div></div></section>
+
+<section class="sec3" id="why"><div class="wrap3"><p class="eyeb">Why Keetown</p><h2 class="h2c">One partner across the <span>property lifecycle.</span></h2>
+  <div class="grid3 g4">{tiles(why)}</div></div></section>
+
+<section class="sec3 tint" id="areas"><div class="wrap3 split3"><div><p class="eyeb">Where we work</p><h2 class="h2c">Hyderabad, <span>area by area.</span></h2><p class="lead3">We know the micro-markets: rents, prices, commute and community rules, from the IT corridor to the airport side.</p>
+  <div class="chips3">{areas}</div></div><div class="bigvis rv" data-vis="nri"></div></div></section>
+
+{read('film')}
+
+{read('faq')}
+
+{cta_band('')}"""
+    return 'index.html', shell2(title='Keetown Realty | Rent, Buy, Sell & Property Management in Hyderabad',
+        desc='One team for every property need in Hyderabad: verified rentals, legal-first home buying, selling, complete property management for owners and NRIs, builder sales, gated-community desks and employee relocation for companies. Call +91 63017 78084.',
+        path='index.html', body=body, pre='', jsonld=read('jsonld'), scripts=['js/hero.js'])
+
+def client_page2(c):
     pre, path = '../', f"for/{c['slug']}.html"
-    wa_text = f"Hi Keetown Realty, {c['who'].lower()}. Please help."
-    href = lambda h: wa(wa_text) if h == '#wa' else (h if h.startswith('#') else pre + h)
-    tgt = lambda h: ' target="_blank" rel="noopener"' if h == '#wa' else ''
-    pts = ''.join(f'<article class="hp-pt" data-fade><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for v, t, d in c['points'])
-    steps = ''.join(f'<li class="hs" data-fade><span class="hs-n">{i}</span><div class="hs-vis" data-vis="{v}"></div><div class="hs-t"><h3>{e(t)}</h3><p>{e(d)}</p></div></li>' for i, (v, t, d) in enumerate(c['steps'], 1))
-    portal = ''.join(f'<li>{e(x)}</li>' for x in c['portal'])
+    pts = ''.join(f'<article class="tile rv" style="--rd:{i * .08}s"><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for i, (v, t, d) in enumerate(c['points']))
+    steps = ''.join(f'<li class="rv" style="--rd:{i * .05}s"><div data-vis="{v}"></div><div><h3>{e(t)}</h3><p>{e(d)}</p></div></li>' for i, (v, t, d) in enumerate(c['steps']))
+    topics = ''.join(f'<article class="tile rv" style="--rd:{i * .06}s"><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for i, (v, t, d) in enumerate(c['topics']))
+    plans = ''
+    if c.get('plans'):
+        plans = '<section class="sec3"><div class="wrap3 plans3"><p class="eyeb">Plans</p><h2 class="h2c">Pick how <span>hands-off</span> you want to be.</h2><p class="lead3">We confirm a written, itemised quote after a free look at your property.</p><div class="grid3 g3">' + ''.join(
+            f'<article class="tile rv" style="--rd:{i * .08}s"><p class="tag3">{e(tag)}</p><h3>{e(n)}</h3><ul>{"".join(f"<li>{e(x)}</li>" for x in li)}</ul></article>' for i, (n, tag, li) in enumerate(c['plans'])) + '</div></div></section>'
     faq = ''.join(f'<details><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in c['faqs'])
-    others = ''.join(f'<a class="hp-o" href="{o["slug"]}.html"><span data-vis="{o["vis"]}"></span><b>{e(o["label"])}</b></a>' for o in CLIENTS if o['slug'] != c['slug'])
-    c1, c2 = c['cta'], c['cta2']
-    body = f"""
-<section class="hp-hero"><div class="wrap hp-hero-in">
-  <div><nav class="hp-crumb"><a href="{pre}help.html">How we help</a> / {e(c['label'])}</nav>
-    <p class="eyebrow dark"><span class="dot"></span> For {e(c['label'].lower())}</p>
-    <h1 data-split>{c['title']}</h1><p class="lede" data-fade>{e(c['sub'])}</p>
-    <div class="hp-cta" data-fade><a class="btn btn-gold" href="{href(c1[0])}"{tgt(c1[0])}>{e(c1[1])}</a><a class="btn btn-line" href="{href(c2[0])}">{e(c2[1])} →</a></div></div>
-  <div class="hp-hero-vis" data-vis="{c['vis']}"></div>
-</div></section>
-<section class="hp-sec"><div class="wrap"><p class="eyebrow dark" data-fade>In 30 seconds</p><h2 data-split>What you get</h2><div class="hp-pts">{pts}</div></div></section>
-<section class="hp-sec tint"><div class="wrap"><p class="eyebrow dark" data-fade>Step by step</p><h2 data-split>How it works</h2>
-  <ol class="hsteps" id="hsteps">{steps}</ol></div></section>
-<section class="hp-sec"><div class="wrap hp-portal"><div data-fade><p class="eyebrow dark">Your portal</p><h2>Everything in one place</h2><ul class="hp-list">{portal}</ul>
-  <a class="btn btn-gold" href="{href(c1[0])}"{tgt(c1[0])}>{e(c1[1])}</a></div><div class="hp-portal-vis" data-vis="portal"></div></div></section>
-<section class="hp-sec tint"><div class="wrap hp-faq"><div><p class="eyebrow dark">Questions</p><h2>Simple answers</h2></div><div class="faq">{faq}</div></div></section>
-<section class="hp-band"><div class="wrap"><h2>Talk to a real person.</h2><p>Message us on WhatsApp or call {e(B['phoneDisplay'])}. We reply within working hours.</p>
-  <div class="hp-cta"><a class="btn btn-wa" href="{wa(wa_text)}" target="_blank" rel="noopener">{WA_SVG} WhatsApp us</a><a class="btn btn-ghost" href="tel:+{B['phone']}">Call {e(B['phoneDisplay'])}</a></div></div></section>
-<section class="hp-sec"><div class="wrap"><p class="eyebrow dark">Other ways we help</p><div class="hp-others">{others}</div></div></section>"""
-    title = f"{_strip(c['title'])} — Keetown Realty"
-    return path, shell(title=title, desc=c['sub'], path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
+    others = ''.join(f'<a href="{o["slug"]}.html">{e(o["label"])}</a>' for o in CLIENTS if o['slug'] != c['slug'])
+    body = f"""<section class="ph"><div class="wrap3 split3">
+  <div><nav class="crumb3"><a href="{pre}index.html">Home</a> / {e(c['label'])}</nav><p class="eyeb">{e(c['who'])}</p>
+    <h1>{c['title']}</h1><p class="lead3">{e(c['sub'])}</p>
+    <div class="ph-acts"><button class="kbtn" type="button" data-interest="{c['interest']}">I’m interested</button><a class="kbtn ghost" href="#how">How it works</a></div></div>
+  <div class="bigvis" data-vis="{c['vis']}"></div></div></section>
+<section class="sec3"><div class="wrap3"><p class="eyeb">In short</p><h2 class="h2c">What you <span>get.</span></h2><div class="grid3 g3">{pts}</div></div></section>
+<section class="sec3 tint" id="how"><div class="wrap3"><p class="eyeb">Step by step</p><h2 class="h2c">How it <span>works.</span></h2><ol class="steps3">{steps}</ol></div></section>
+<section class="sec3"><div class="wrap3"><p class="eyeb">Good to know</p><h2 class="h2c">Related <span>topics.</span></h2><div class="grid3 g3">{topics}</div></div></section>
+{plans}
+<section class="kfaq"><div class="kfaq-in"><h2>Questions</h2>{faq}</div></section>
+{cta_band(pre, c['interest'])}
+<section class="sec3" style="padding-top:0"><div class="wrap3"><p class="eyeb">Other ways we help</p><div class="others3">{others}</div></div></section>"""
+    ld = {'@context': 'https://schema.org', '@type': 'Service', 'name': _strip(c['title']), 'serviceType': c['label'], 'description': c['sub'], 'areaServed': {'@type': 'City', 'name': 'Hyderabad'},
+          'provider': {'@type': 'RealEstateAgent', 'name': 'Keetown Realty', 'telephone': '+91-6301778084', 'url': SITE + '/'}}
+    fq = {'@context': 'https://schema.org', '@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in c['faqs']]}
+    jl = ''.join(f'<script type="application/ld+json">{json.dumps(j, ensure_ascii=False)}</script>' for j in (ld, fq))
+    return path, shell2(title=f"{c['label']} in Hyderabad — Keetown Realty", desc=c['sub'], path=path, body=body, pre=pre, jsonld=jl)
 
-def unit_page():
-    body = '<section class="pg wrap" id="unit" aria-live="polite"><p class="sub" style="padding:80px 0">Loading unit…</p></section>'
-    return 'unit.html', shell(title='Builder unit — Keetown Realty', desc='Unit details from a Keetown partner builder.', path='unit.html', body=body, pre='', cur='properties.html', robots='noindex,follow', scripts=['js/inventory.js', 'js/unit.js'])
-
-def help_hub():
-    pre, path = '', 'help.html'
-    cards = ''.join(f'<a class="hc2" href="for/{c["slug"]}.html" data-fade><div class="hc2-vis" data-vis="{c["vis"]}"></div><div><p class="hc2-who">{e(c["who"])}</p><h3>{e(c["label"])}</h3><p>{e(c["sub"])}</p><span class="hc2-go">See how we help →</span></div></a>' for c in CLIENTS)
-    picks = ''.join(f'<a role="listitem" href="for/{c["slug"]}.html">{e(c["who"])}</a>' for c in CLIENTS)
-    body = f"""
-<section class="hp-hero hub"><div class="wrap"><p class="eyebrow dark"><span class="dot"></span> How we help</p>
-  <h1 data-split>One team for every <em>property need in Hyderabad.</em></h1>
-  <p class="lede" data-fade>Pick what describes you. Each page explains, step by step and in plain words, exactly what we do for you.</p>
-  <div class="hub-pick" data-fade role="list">{picks}</div></div></section>
-<section class="hp-sec"><div class="wrap hub-grid">{cards}</div></section>"""
-    return path, shell(title='How Keetown Realty helps — tenants, buyers, owners, sellers, builders, communities, companies', desc='See how Keetown Realty helps each kind of client in Hyderabad, step by step and in plain words.', path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
+def about_page():
+    pillars = [('price', 'Sales', 'Primary launches and resale across residential and commercial.'), ('keys', 'Rentals & leasing', 'Qualified tenants, fast closures, clean paperwork.'),
+               ('community', 'Gated communities', 'Dedicated on-site rental and resale desks.'), ('report', 'Property management', 'Hands-free ownership with transparent reporting.'),
+               ('relocation', 'Keetown for Business', 'Employee relocation and office space for companies.')]
+    tiles = ''.join(f'<article class="tile rv" style="--rd:{i * .07}s"><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for i, (v, t, d) in enumerate(pillars))
+    body = f"""<section class="ph"><div class="wrap3 split3"><div><nav class="crumb3"><a href="index.html">Home</a> / About</nav><p class="eyeb">About Keetown Realty</p>
+  <h1>Real estate, <em>expertly managed.</em></h1><p class="lead3">From the first launch to long-term care, Keetown brings buyers, owners, tenants, communities and companies under one trusted roof in Hyderabad.</p>
+  <div class="ph-acts"><button class="kbtn" type="button" data-interest>I’m interested</button><a class="kbtn ghost" href="tel:+{B['phone']}">Call {e(B['phoneDisplay'])}</a></div></div>
+  <div class="bigvis" data-vis="desk"></div></div></section>
+<section class="sec3"><div class="wrap3"><p class="eyeb">What we do</p><h2 class="h2c">Five service lines, <span>one team.</span></h2><div class="grid3 g3">{tiles}</div></div></section>
+<section class="sec3 tint"><div class="wrap3"><p class="eyeb">How we work</p><h2 class="h2c">Integrated. Transparent. <span>Community-first.</span></h2>
+  <p class="lead3">Clear processes and clear communication. Every person is verified, every paper is checked before money moves, and we respect the rules of every community we work in.</p>
+  <div class="others3">{''.join(f'<a href="{c["slug"] and "for/" + c["slug"]}.html">{e(c["label"])}</a>' for c in CLIENTS)}</div></div></section>
+{cta_band('', '', "Let’s build value together.", 'Speak with our team to tailor a plan for your property, your community or your company.')}"""
+    return 'about.html', shell2(title='About Keetown Realty — real estate, expertly managed in Hyderabad', desc='Keetown Realty: sales, rentals, gated-community desks, property management and relocation for companies in Hyderabad.', path='about.html', body=body, pre='')
 
 # ---------------------------------------------------------------- public deploy folder
-PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers', 'brochure', 'scripts'}
+PUBLIC_EXCLUDE = {'properties.html', 'localities.html', 'post-property.html', 'unit.html', 'help.html', 'management.html', 'business.html', 'property', 'localities', 'in', 'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers', 'brochure', 'scripts'}
 def dist():
     """Copy the site to dist/ for Cloudflare Pages: public site + team workspace + promo studio (noindex). Excludes data/, build.py and notes."""
     import shutil
@@ -540,6 +627,7 @@ def dist():
         if f.suffix in ('.html', '.xml', '.txt', '.js') and f.is_file():
             t = f.read_text(encoding='utf-8'); t2 = t.replace('https://www.keetownrealty.in', SITE)
             if t2 != t: f.write_text(t2, encoding='utf-8')
+    (out / '_redirects').write_text('/management.html /for/owners.html 301\n/management /for/owners.html 301\n/business.html /for/companies.html 301\n/business /for/companies.html 301\n/help.html / 301\n/help / 301\n/properties* / 302\n/property/* / 302\n/localities* / 302\n/in/* / 302\n/post-property* / 302\n/unit* / 302\n', encoding='utf-8')
     hide = not B.get('indexing', True)
     if hide: (out / 'robots.txt').write_text('User-agent: *\nDisallow: /\n', encoding='utf-8')
     (out / '_headers').write_text('/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: SAMEORIGIN\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()\n'
