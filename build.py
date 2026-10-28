@@ -88,7 +88,7 @@ PIN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-
 
 def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots='index,follow', og_type='website', head=''):
     canon = f"{SITE}/{path}"
-    nav = [('properties.html', 'Properties'), ('localities.html', 'Localities'), ('management.html', 'Property management'), ('index.html#tools', 'Calculators'), ('post-property.html', 'Post property <b class="free">FREE</b>')]
+    nav = [('properties.html', 'Properties'), ('localities.html', 'Localities'), ('management.html', 'Property management'), ('business.html', 'For business'), ('index.html#tools', 'Calculators'), ('post-property.html', 'Post property <b class="free">FREE</b>')]
     cls = lambda h: ' class="cur"' if cur == h else ''
     links = ''.join(f'<a href="{pre}{h}"{cls(h)}>{t}</a>' for h, t in nav)
     ld = ''.join(f'<script type="application/ld+json">{json.dumps(j, ensure_ascii=False)}</script>' for j in jsonld)
@@ -126,7 +126,7 @@ def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots
 </main>
 <footer class="foot"><div class="wrap foot-grid">
   <div><img class="foot-logo" src="{pre}assets/brand/logo-white.svg" alt="Keetown Realty" width="129" height="52"><p id="fRera">{e(B['reraNo'])}</p></div>
-  <div><a href="{pre}properties.html">All properties</a><a href="{pre}localities.html">Locality guides</a><a href="{pre}management.html">Property management</a><a href="{pre}index.html#tools">Calculators</a></div>
+  <div><a href="{pre}properties.html">All properties</a><a href="{pre}localities.html">Locality guides</a><a href="{pre}management.html">Property management</a><a href="{pre}business.html">Keetown for Business</a><a href="{pre}index.html#tools">Calculators</a></div>
   <div><a href="{pre}login.html">Client login</a><p class="fine">Listings and market figures are indicative samples. Always verify RERA, title and approvals independently.</p></div>
 </div></footer>
 <a class="fab" id="fab" href="#" target="_blank" rel="noopener" aria-label="Chat with Keetown Realty on WhatsApp">{WA_SVG}<span>Chat on WhatsApp</span></a>
@@ -461,7 +461,7 @@ def main():
     for d in ('property', 'localities', 'in'):
         for f in (ROOT / d).glob('*.html'):
             if f'{d}/{f.name}' not in keep: f.unlink()
-    urls = ['', 'properties.html', 'localities.html', 'management.html', 'post-property.html'] + [p for p in pages if p not in ('properties.html', 'localities.html', 'post-property.html') and (not p.startswith('in/') or p in indexable)]
+    urls = ['', 'properties.html', 'localities.html', 'management.html', 'business.html', 'post-property.html'] + [p for p in pages if p not in ('properties.html', 'localities.html', 'post-property.html') and (not p.startswith('in/') or p in indexable)]
     write('sitemap.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
           ''.join(f'  <url><loc>{SITE}/{u}</loc><lastmod>{TODAY}</lastmod></url>\n' for u in urls) + '</urlset>\n')
     write('robots.txt', f"User-agent: *\nAllow: /\nDisallow: /os/\nDisallow: /portal.html\nDisallow: /promo/\n\nSitemap: {SITE}/sitemap.xml\n")

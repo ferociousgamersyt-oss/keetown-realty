@@ -51,7 +51,13 @@ window.KTForms = (function () {
       ${two(inp('company', 'Company name *', v(p, 'company')), inp('rera', 'RERA registration no.', v(p, 'rera')))}
       ${two(inp('gst', 'GST no. (optional)', v(p, 'gst')), inp('website', 'Website (optional)', v(p, 'website'), 'placeholder="https://"'))}
       ${pills('areas', 'Project localities', v(p, 'areas', []), 1)}
-      ${two(sel('pt', 'Project type', ['Apartments', 'Villas / gated communities', 'Plotted layouts', 'Commercial'], v(p, 'pt', 'Apartments')), inp('units', 'Units on sale', v(p, 'units'), 'inputmode="numeric"'))}` }
+      ${two(sel('pt', 'Project type', ['Apartments', 'Villas / gated communities', 'Plotted layouts', 'Commercial'], v(p, 'pt', 'Apartments')), inp('units', 'Units on sale', v(p, 'units'), 'inputmode="numeric"'))}` },
+    company: { title: 'Your company', sub: 'Keetown for Business: employee relocation and office space in Hyderabad.', body: p => `
+      ${two(inp('company', 'Company name *', v(p, 'company')), inp('designation', 'Your designation', v(p, 'designation'), 'placeholder="e.g. HR Business Partner"'))}
+      ${two(sel('industry', 'Industry', ['Technology / GCC', 'Startup', 'Consulting', 'BFSI', 'Pharma / life sciences', 'Manufacturing', 'Other'], v(p, 'industry', 'Technology / GCC')), sel('size', 'Company size (India)', ['1–50', '51–200', '201–1,000', '1,000–5,000', '5,000+'], v(p, 'size', '51–200')))}
+      ${two(locSel('office', 'Hyderabad office locality', v(p, 'office'), 0, 'No office yet'), sel('moves', 'Employee moves per year', ['Under 10', '10–50', '50–200', '200+'], v(p, 'moves', 'Under 10')))}
+      ${checks('interest', 'What do you need?', ['Employee relocation', 'Office space', 'Company-leased housing', 'Property management for leased homes'], v(p, 'interest', ['Employee relocation']))}
+      ${inp('gst', 'GST no. for invoices (optional)', v(p, 'gst'))}` }
   };
 
   function render(role, p = {}, { contact = true } = {}) {
@@ -62,14 +68,14 @@ window.KTForms = (function () {
   }
   function read(form, role) {
     const fd = new FormData(form), p = {};
-    for (const [k, val] of fd.entries()) { if (['areas', 'types'].includes(k)) (p[k] = p[k] || []).push(val); else p[k] = val; }
+    for (const [k, val] of fd.entries()) { if (['areas', 'types', 'interest'].includes(k)) (p[k] = p[k] || []).push(val); else p[k] = val; }
     p.areas = p.areas || []; p.types = p.types || []; p.manage = !!p.manage;
     ['budgetMin', 'budgetMax'].forEach(k => p[k] = p[k] === '' || p[k] == null ? null : +p[k]);
     let err = '';
     if (!p.name || !p.name.trim()) err = 'Please enter your name.';
     else if (['tenant', 'buyer', 'builder'].includes(role) && !p.areas.length) err = 'Choose at least one area.';
     else if (['owner', 'seller'].includes(role) && !p.locality) err = 'Select the property locality.';
-    else if (role === 'builder' && !p.company) err = 'Enter your company name.';
+    else if (['builder', 'company'].includes(role) && !p.company) err = 'Enter your company name.';
     else if (p.budgetMin != null && p.budgetMax != null && p.budgetMin > p.budgetMax) err = 'Minimum budget is higher than maximum.';
     else if (p.email && !/^\S+@\S+\.\S+$/.test(p.email)) err = 'Enter a valid email address.';
     else if (p.upi && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(p.upi)) err = 'UPI ID looks incorrect (e.g. name@bank).';

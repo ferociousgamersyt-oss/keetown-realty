@@ -20,7 +20,8 @@ window.KTAuth = (function () {
     owner:   { label: 'Rental property owner',  short: 'Owner',   dl: 'required', blurb: 'Want to rent out or have us manage your property.' },
     seller:  { label: 'Property seller',        short: 'Seller',  dl: 'required', blurb: 'Selling a flat, villa, plot or commercial space.' },
     buyer:   { label: 'Buyer (specific need)',  short: 'Buyer',   dl: 'optional', blurb: 'Searching for a specific property in specific areas.' },
-    builder: { label: 'Builder / developer',    short: 'Builder', dl: 'optional', blurb: 'Promoting projects; RERA and GST checked by our team.' }
+    builder: { label: 'Builder / developer',    short: 'Builder', dl: 'optional', blurb: 'Promoting projects; RERA and GST checked by our team.' },
+    company: { label: 'Company / HR (Keetown for Business)', short: 'Company', dl: 'optional', blurb: 'Relocating employees to Hyderabad or looking for office space.' }
   };
 
   const raw = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
@@ -29,8 +30,8 @@ window.KTAuth = (function () {
   const write = (k, v) => { const old = raw(k, null); rawSet(k, v); if (MODE === 'live') queue(k, old, v); };
 
   /* ---------- live sync (outbox → /api/sync, /api/state → cache) ---------- */
-  const OB = 'keetown_outbox', LISTS = { keetown_tenancies: 'tenancies', keetown_purchases: 'purchases', keetown_submissions: 'submissions', keetown_leads: 'leads' };
-  const BLOB = /^keetown_(portal|searches|seen)_\d{10}$/, CACHED = ['keetown_users', 'keetown_tenancies', 'keetown_purchases', 'keetown_submissions'];
+  const OB = 'keetown_outbox', LISTS = { keetown_tenancies: 'tenancies', keetown_purchases: 'purchases', keetown_submissions: 'submissions', keetown_leads: 'leads', keetown_relocations: 'relocations', keetown_offices: 'offices' };
+  const BLOB = /^keetown_(portal|searches|seen)_\d{10}$/, CACHED = ['keetown_users', 'keetown_tenancies', 'keetown_purchases', 'keetown_submissions', 'keetown_relocations', 'keetown_offices'];
   function diff(oldMap, newMap) {
     const put = [], del = [];
     Object.keys(newMap).forEach(id => { if (JSON.stringify(oldMap[id]) !== JSON.stringify(newMap[id])) put.push({ id, data: newMap[id] }); });
@@ -66,7 +67,7 @@ window.KTAuth = (function () {
   }
   function applyState(st) {
     const users = {}; if (st.user) users[st.me] = st.user;
-    rawSet(UK, users); rawSet('keetown_tenancies', st.tenancies); rawSet('keetown_purchases', st.purchases); rawSet('keetown_submissions', st.submissions);
+    rawSet(UK, users); rawSet('keetown_tenancies', st.tenancies); rawSet('keetown_purchases', st.purchases); rawSet('keetown_submissions', st.submissions); rawSet('keetown_relocations', st.relocations || []); rawSet('keetown_offices', st.offices || []);
     try { Object.keys(localStorage).filter(k => BLOB.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
     Object.entries(st.blobs || {}).forEach(([k, v]) => rawSet(k, v));
     rawSet(SK, { mobile: st.me, at: Date.now(), staff: !!st.staff });
@@ -141,6 +142,7 @@ window.KTAuth = (function () {
     '9000000002': { role: 'owner', name: 'Ravi Kumar', profile: { locality: 'kokapet', areas: ['kokapet'], society: 'Skyline Towers', ptype: 'Apartment', beds: '3', area: '2000', floor: '12 / 32', rent: '85000', deposit: '3', furn: 'Fully furnished', available: iso(now()), tenantPref: 'Family', petsOk: 'no', upi: 'ravi.demo@upi', manage: true, email: 'ravi.demo@example.com', heard: 'Google search' } },
     '9000000003': { role: 'buyer', name: 'Arjun Reddy', profile: { areas: ['kokapet', 'narsingi', 'tellapur', 'findist'], budgetMin: 150, budgetMax: 300, types: ['Apartment', 'Villa'], bedsMin: '3', possession: 'Any', purpose: 'Self-use', loan: 'Yes', timeline: 'Within 3 months', office: 'findist', email: 'arjun.demo@example.com', heard: 'YouTube' } },
     '9000000004': { role: 'seller', name: 'Lakshmi Rao', profile: { locality: 'miyapur', areas: ['miyapur'], society: 'Metro Heights', ptype: 'Apartment', beds: '3', size: '1650', unit: 'sq.ft', price: '105', status: 'Ready to move', age: '5–10 years', timeline: 'Within 3 months', email: 'lakshmi.demo@example.com', heard: 'Friend / referral' } },
+    '9000000006': { role: 'company', name: 'Meera Iyer', profile: { company: 'Nimbus Analytics (demo)', designation: 'HR Business Partner', industry: 'Technology / GCC', size: '201–1,000', office: 'findist', moves: '10–50', interest: ['Employee relocation', 'Office space'], gst: '', email: 'meera.demo@example.com', heard: 'LinkedIn' } },
     '9000000005': { role: 'builder', name: 'Sanjay Varma', profile: { company: 'Skyline Developers (demo)', rera: 'P024000XXXXX (demo)', gst: '', website: '', areas: ['kokapet', 'narsingi'], pt: 'Apartments', units: '240', email: 'sales.demo@example.com', heard: 'Property portal' } }
   };
   const DEMO_LIST = Object.entries(DEMO).map(([mobile, d]) => ({ mobile, role: d.role, name: d.name }));
@@ -180,6 +182,30 @@ window.KTAuth = (function () {
     S.forEach((x, i) => L.unshift({ id: 'sdemo' + mobile.slice(-1) + i, mobile, role: DEMO[mobile].role, photos: 6, details: {}, at: stamp((10 - i) * DAY), ...x }));
     write('keetown_submissions', L);
   }
+  function seedCorp(mobile) {
+    const R = read('keetown_relocations', []), C = window.KTCorp, co = { mobile: '9000000006', company: 'Nimbus Analytics (demo)', hr: 'Meera Iyer' };
+    if (!R.some(r => r.id === 'rdemo1')) {
+    const svc = (pkg, done, prog) => (C ? C.PACKAGES[pkg].services : ['consult']).map((k, i) => ({ key: k, status: i < done ? 'Done' : i < done + prog ? 'In progress' : 'Not started' }));
+    const base = (id, f) => ({ id, demo: true, companyMobile: co.mobile, companyName: co.company, hrName: co.hr, status: 'Active', comments: [], areas: [], office: 'findist', billing: 'Company pays Keetown', costCenter: 'ENG-HYD', notes: '', employeeEmail: '', ...f });
+    R.unshift(
+      base('rdemo1', { employeeName: 'Priya Sharma', employeeMobile: '9000000001', level: 'Senior Engineer', fromCity: 'Bengaluru', joinDate: iso(now() + 12 * DAY), arrival: iso(now() + 5 * DAY), family: 'Couple + 1 child', intent: 'rent', budget: 90000, areas: ['kokapet', 'findist', 'gachibowli'], beds: '2', tempNights: 14, package: 'standard', services: svc('standard', 2, 2), stage: 3,
+        log: [{ at: stamp(1 * DAY), text: 'Stage: House hunting', by: 'keetown' }, { at: stamp(3 * DAY), text: 'Temporary stay booked: 14 nights, Financial District', by: 'keetown' }, { at: stamp(6 * DAY), text: 'Relocation requested by Meera Iyer', by: 'hr' }],
+        comments: [{ at: stamp(2 * DAY), text: 'Six verified 2–3BHK homes shortlisted within the ₹90,000 allowance. Visits planned for Saturday.', by: 'keetown' }], created: stamp(6 * DAY) }),
+      base('rdemo2', { employeeName: 'Karthik Menon', employeeMobile: '9800000011', level: 'Director, Data Platform', fromCity: 'Pune', joinDate: iso(now() + 21 * DAY), arrival: iso(now() + 14 * DAY), family: 'Family of 4', intent: 'rent', budget: 150000, areas: ['kokapet', 'narsingi'], beds: '3', tempNights: 30, package: 'executive', services: svc('executive', 1, 2), stage: 1,
+        log: [{ at: stamp(1 * DAY), text: 'Stage: Consultation', by: 'keetown' }, { at: stamp(2 * DAY), text: 'Relocation requested by Meera Iyer', by: 'hr' }], created: stamp(2 * DAY) }),
+      base('rdemo3', { employeeName: 'Ananya Das', employeeMobile: '9800000012', level: 'Product Designer', fromCity: 'Chennai', joinDate: iso(now() - 40 * DAY), arrival: iso(now() - 45 * DAY), family: 'Single', intent: 'rent', budget: 40000, areas: ['gachibowli', 'kondapur'], beds: '1', tempNights: 0, package: 'essential', services: svc('essential', 4, 0), stage: 6, settledOn: stamp(30 * DAY),
+        log: [{ at: stamp(30 * DAY), text: 'Stage: Settled', by: 'keetown' }, { at: stamp(52 * DAY), text: 'Relocation requested by Meera Iyer', by: 'hr' }], created: stamp(52 * DAY) }));
+    write('keetown_relocations', R); }
+    if (mobile !== co.mobile) return;   // only the company account can hold its office brief
+    const O = read('keetown_offices', []); if (O.some(o => o.id === 'odemo1')) return;
+    const checks = (C ? C.OFFICE_CHECKS : []).map((n, i) => ({ name: n, status: i < 2 ? 'Cleared' : 'Pending' }));
+    O.unshift({ id: 'odemo1', demo: true, companyMobile: co.mobile, companyName: co.company, contactName: co.hr, seats: 120, area: 9000, type: 'Managed office', areas: ['findist', 'kokapet'], budget: 9500, budgetUnit: 'per seat / month', startBy: iso(now() + 75 * DAY), termYears: 3, parking: 30, needs: ['24×7 access', 'Cafeteria', 'Meeting rooms', 'DG power backup'], notes: 'Expansion team of 120 by Q1; growing to 200.',
+      stage: 2, status: 'Active', checks, created: stamp(12 * DAY),
+      shortlist: [{ name: 'Grade-A managed floor, Financial District', area: 9500, rent: '₹9,200 / seat', note: 'Ready in 45 days · metro feeder 600 m', status: 'Visit Thu 11:00' }, { name: 'Tech park floor, Kokapet SEZ road', area: 10200, rent: '₹78 / sq.ft + CAM', note: 'Warm shell · 60-day rent-free fit-out', status: 'Visit Thu 15:00' }, { name: 'Boutique office, Nanakramguda', area: 8600, rent: '₹9,800 / seat', note: 'Fully fitted · smaller floor plate', status: 'Shortlisted' }],
+      log: [{ at: stamp(1 * DAY), text: 'Stage: Site visits', by: 'keetown' }, { at: stamp(5 * DAY), text: 'Shortlist of 3 shared', by: 'keetown' }, { at: stamp(12 * DAY), text: 'Office requirement submitted', by: 'hr' }],
+      comments: [{ at: stamp(5 * DAY), text: 'Three options within budget. Thursday visits confirmed; cab pickup from your current office at 10:15.', by: 'keetown' }] });
+    write('keetown_offices', O);
+  }
   function ensureDemo(mobile) {
     const d = DEMO[mobile]; if (!d) return;
     const all = users();
@@ -192,6 +218,7 @@ window.KTAuth = (function () {
     }
     if (mobile === '9000000001' || mobile === '9000000002') seedTenancy();
     if (mobile === '9000000003') seedPurchase();
+    if (mobile === '9000000006' || mobile === '9000000001') seedCorp(mobile);
     seedSubmissions(mobile);
   }
   function resetDemo() {
@@ -199,6 +226,7 @@ window.KTAuth = (function () {
     write('keetown_tenancies', read('keetown_tenancies', []).filter(t => t.id !== 'tdemo1'));
     write('keetown_purchases', read('keetown_purchases', []).filter(p => p.id !== 'bdemo1'));
     write('keetown_submissions', read('keetown_submissions', []).filter(x => !DEMO[x.mobile]));
+    write('keetown_relocations', read('keetown_relocations', []).filter(x => !x.demo)); write('keetown_offices', read('keetown_offices', []).filter(x => !x.demo));
     const s = session(); if (s && DEMO[s.mobile]) logout();
     if (MODE === 'live') return fetch(API + '/demo/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   }

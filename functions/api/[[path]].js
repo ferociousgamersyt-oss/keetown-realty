@@ -9,9 +9,11 @@
  *  POST /api/demo/reset                       reset the five demo accounts
  *  GET  /api/digilocker/start | /callback     DigiLocker OAuth 2.0 + PKCE
  */
-const DEMO = ['9000000001', '9000000002', '9000000003', '9000000004', '9000000005'];
+const DEMO = ['9000000001', '9000000002', '9000000003', '9000000004', '9000000005', '9000000006'];
 const DAY = 864e5, SESSION_DAYS = 30, COOKIE = 'kt_sid';
-const COLS = ['users', 'tenancies', 'purchases', 'submissions', 'leads', 'blob'];
+const COLS = ['users', 'tenancies', 'purchases', 'submissions', 'leads', 'blob', 'relocations', 'offices'];
+const TEAM_COLS = ['relocations', 'offices'];
+const LOCK_OPEN = ['Awaiting company approval', 'Approved, confirming with owner', 'Locked'];   // Keetown staff may read and update these
 const BLOB_RE = /^keetown_(portal|searches|seen)_([6-9]\d{9})$/;
 
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -70,6 +72,8 @@ function access(col, id, d) {   // which mobiles may see / change this record
   if (col === 'tenancies') return [d.ownerMobile || null, d.tenantMobile || null];
   if (col === 'purchases' || col === 'submissions') return [d.mobile || null, null];
   if (col === 'leads') return [d.portalMobile || d.phone || null, null];
+  if (col === 'relocations') return [d.companyMobile || null, d.employeeMobile || null];
+  if (col === 'offices') return [d.companyMobile || null, null];
   if (col === 'blob') { const m = BLOB_RE.exec(id); return m ? [m[2], null] : [null, null]; }
   return [null, null];
 }
@@ -77,20 +81,21 @@ const rows = async (env, sql, ...b) => (await env.DB.prepare(sql).bind(...b).all
 
 async function state(env, s) {
   const me = s.mobile, list = await rows(env, 'SELECT col, id, data FROM records WHERE (a = ? OR b = ?) AND col != ?', me, me, 'leads');
-  const out = { me, staff: s.staff, user: null, tenancies: [], purchases: [], submissions: [], blobs: {} };
+  const out = { me, staff: s.staff, user: null, tenancies: [], purchases: [], submissions: [], relocations: [], offices: [], blobs: {} };
+  if (s.staff) { const seen = new Set(list.map(r => r.col + r.id)); for (const r of await rows(env, "SELECT col, id, data FROM records WHERE col IN ('relocations','offices')")) if (!seen.has(r.col + r.id)) list.push(r); }
   for (const r of list) { const d = JSON.parse(r.data);
     if (r.col === 'users') { if (r.id === me) out.user = d; }
     else if (r.col === 'blob') out.blobs[r.id] = d;
     else if (out[r.col]) out[r.col].push(d); }
   const byNew = (x, y) => String(y.created || y.at || '').localeCompare(String(x.created || x.at || ''));
-  out.tenancies.sort(byNew); out.purchases.sort(byNew); out.submissions.sort(byNew);
+  out.tenancies.sort(byNew); out.purchases.sort(byNew); out.submissions.sort(byNew); out.relocations.sort(byNew); out.offices.sort(byNew);
   return out;
 }
 
 async function sync(env, s, body) {
   const { col } = body; if (!COLS.includes(col)) return err('Unknown collection');
   const put = Array.isArray(body.put) ? body.put.slice(0, 200) : [], del = Array.isArray(body.del) ? body.del.slice(0, 200) : [];
-  const me = s && s.mobile, now = Date.now(), stmts = [];
+  const me = s && s.mobile, now = Date.now(), stmts = [], conflicts = [];
   if (col !== 'leads' && !s) return err('Please log in again', 401);
   for (const { id, data } of put) {
     if (typeof id !== 'string' || !id || id.length > 80 || !data || typeof data !== 'object') continue;
@@ -101,24 +106,34 @@ async function sync(env, s, body) {
         : env.DB.prepare('INSERT OR IGNORE INTO records (col, id, a, b, data, updated) VALUES (?, ?, ?, NULL, ?, ?)').bind(col, id, a, text.slice(0, 20000), now));
       continue;
     }
-    if (a !== me && b !== me) continue;   // can't write a record you are not part of
+    const team = s.staff && TEAM_COLS.includes(col);
+    if (!team && a !== me && b !== me) continue;   // can't write a record you are not part of
     const old = await env.DB.prepare('SELECT a, b, data FROM records WHERE col = ? AND id = ?').bind(col, id).first();
-    if (old && old.a !== me && old.b !== me) continue;   // can't take over someone else's record
+    if (!team && old && old.a !== me && old.b !== me) continue;   // can't take over someone else's record
+    if (col === 'relocations' && old && old.a !== me && !team && old.a !== a) continue;   // an employee can't move a case to another company
     if (col === 'users' && !isDemo(env, me)) {           // verification status is set by the server only
       const prev = old ? JSON.parse(old.data) : {};
       data.verified = prev.verified || { status: false }; delete data.demo; delete data.staff;
+      if (!data.verified.status) {   // employees added by a client company are vouched for by their employer
+        const rel = await env.DB.prepare("SELECT data FROM records WHERE col = 'relocations' AND b = ?").bind(me).first();
+        if (rel) { const r = JSON.parse(rel.data); if (r.status === 'Active') data.verified = { status: true, method: 'company', name: r.employeeName || '', company: r.companyName || '', at: new Date().toISOString() }; }
+      }
+    }
+    if (col === 'relocations' && data.lock && data.lock.pid && LOCK_OPEN.includes(data.lock.status)) {   // one active lock per home
+      const others = await rows(env, "SELECT id, data FROM records WHERE col = 'relocations' AND id != ?", id);
+      if (others.some(o => { const x = JSON.parse(o.data); return x.status === 'Active' && x.lock && x.lock.pid === data.lock.pid && LOCK_OPEN.includes(x.lock.status); })) { conflicts.push(id); continue; }
     }
     stmts.push(env.DB.prepare('INSERT OR REPLACE INTO records (col, id, a, b, data, updated) VALUES (?, ?, ?, ?, ?, ?)').bind(col, id, a, b, JSON.stringify(data), now));
   }
   for (const id of del) {
     if (typeof id !== 'string') continue;
     if (col === 'leads') { if (s && s.staff) stmts.push(env.DB.prepare('DELETE FROM records WHERE col = ? AND id = ?').bind(col, id)); continue; }
-    if (col === 'tenancies') continue;   // shared records are never deleted from one side
+    if (['tenancies', 'relocations', 'offices'].includes(col)) continue;   // shared records are closed, never deleted from one side
     stmts.push(env.DB.prepare('DELETE FROM records WHERE col = ? AND id = ? AND (a = ? OR b = ?)').bind(col, id, me, me));
     if (col === 'users' && id === me) stmts.push(env.DB.prepare("DELETE FROM records WHERE col IN ('blob','purchases','submissions') AND a = ?").bind(me), env.DB.prepare('DELETE FROM sessions WHERE mobile = ?').bind(me));
   }
   if (stmts.length) await env.DB.batch(stmts);
-  return json({ ok: true, written: stmts.length });
+  return json({ ok: true, written: stmts.length, conflicts });
 }
 
 /* ---------- DigiLocker (MeriPehchaan OAuth 2.0 + PKCE) ---------- */
@@ -193,6 +208,10 @@ export async function onRequest({ request: req, env, params }) {
     }
     if (!s) return err('Please log in', 401);
     if (path === '/state' && M === 'GET') return json(await state(env, s));
+    if (path === '/locks' && M === 'GET') {   // ids of homes reserved through company relocations (no personal data)
+      const ids = (await rows(env, "SELECT data FROM records WHERE col = 'relocations'")).map(r => JSON.parse(r.data)).filter(x => x.status === 'Active' && x.lock && LOCK_OPEN.includes(x.lock.status)).map(x => x.lock.pid);
+      return json([...new Set(ids)]);
+    }
     if (path === '/leads' && M === 'GET') {
       if (!s.staff) return err('Staff only', 403);
       return json((await rows(env, "SELECT data FROM records WHERE col = 'leads' ORDER BY updated DESC LIMIT 2000")).map(r => JSON.parse(r.data)));

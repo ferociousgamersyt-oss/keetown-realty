@@ -1,5 +1,6 @@
 (function () {
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const A = KTAuth, { localities } = KT;
   let step = 0, role = null, mobile = '', timerId;
   const ICONS = {
@@ -7,12 +8,13 @@
     owner: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h3M13 8h3M8 12h3M13 12h3M10 21v-4h4v4"/>',
     seller: '<path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.3"/>',
     buyer: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
-    builder: '<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/>'
+    builder: '<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/>',
+    company: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>'
   };
   if (A.MODE === 'demo') $('#demoNote').textContent = 'Demo mode: no SMS is sent — use OTP ' + A.DEMO_OTP + '. DigiLocker verification is simulated.';
   // one-click demo logins, one per portal
   if (A.DEMO_LIST) {
-    const box = $('#demoAccounts'), LBL = { tenant: 'Rental tenant', owner: 'Rental owner', buyer: 'Buyer', seller: 'Seller', builder: 'Builder' };
+    const box = $('#demoAccounts'), LBL = { tenant: 'Rental tenant', owner: 'Rental owner', buyer: 'Buyer', seller: 'Seller', builder: 'Builder', company: 'Company / HR' };
     box.hidden = false;
     box.innerHTML = `<p class="da-h">Try a demo account</p><p class="da-s">Each opens a portal with sample data. OTP for all: <b>${A.DEMO_OTP}</b></p>
       <ul>${A.DEMO_LIST.map(d => `<li><button type="button" class="da-btn" data-demo="${d.mobile}"><span><b>${LBL[d.role]}</b><small>${d.name} · +91 ${d.mobile.replace(/(\d{5})(\d{5})/, '$1 $2')}</small></span><i aria-hidden="true">→</i></button></li>`).join('')}</ul>
@@ -77,6 +79,17 @@
       await A.verifyOtp(mobile, code); A.startSession(mobile);
       const existing = A.users()[mobile];
       if (existing && !existing.quick) { location.href = 'portal.html'; return; }       // returning user → straight to portal
+      const rel = !existing && window.KTCorp ? KTCorp.relForEmployee(mobile)[0] : null;
+      if (rel) {   // employee of a client company: account comes pre-filled from HR's request
+        role = rel.intent === 'buy' ? 'buyer' : 'tenant';
+        A.saveUser({ mobile, role, created: new Date().toISOString(), sponsor: { company: rel.companyName, relocation: rel.id },
+          profile: { name: rel.employeeName, email: rel.employeeEmail || '', areas: rel.areas.length ? rel.areas : [rel.office].filter(Boolean), budgetMax: rel.budget || null, bedsMin: rel.beds || '', types: ['Apartment'], furnishing: 'Any', who: rel.family === 'Single' ? 'Bachelors' : 'Family', movein: rel.arrival || '', office: rel.office || '', heard: 'Employer: ' + rel.companyName },
+          consent: {}, verified: { status: false }, attrib: { first: { utm_source: 'employer', company: rel.companyName } } });
+        window.KTTrack && KTTrack.event('employee_onboarded', { company: rel.companyName });
+        $('#roleName').textContent = A.ROLES[role].label;
+        $('.step[data-step="4"]').insertAdjacentHTML('afterbegin', `<div class="ok-banner" style="margin-bottom:14px">Welcome ${esc(rel.employeeName.split(' ')[0])}. ${esc(rel.companyName)} has set up your relocation; your details are already filled in. Just confirm how we may contact you.</div>`);
+        show(4); return;
+      }
       if (existing && existing.quick) { role = existing.role; $('#roleName').textContent = A.ROLES[role].label; buildProfile(); show(3); return; }   // quick sign-up: finish the full profile
       A.saveUser({ mobile, role, created: new Date().toISOString(), profile: {}, consent: {}, verified: { status: false }, attrib: window.KTTrack ? KTTrack.attribution() : {} });
       window.KTTrack && KTTrack.event('signup_started', { role });
@@ -105,10 +118,14 @@
     if (mail && !/^\S+@\S+\.\S+$/.test(email)) return $('#cErr').textContent = 'Enter a valid email address for email updates.';
     $('#cErr').textContent = '';
     const u = A.user(); u.consent = { whatsapp: wa, email: mail, emailAddress: mail ? email : '', terms: true, at: new Date().toISOString() }; A.saveUser(u);
+    if (u.sponsor) {   // company-sponsored employee: the employer vouches for them, straight to the relocation plan
+      if (A.MODE === 'demo') A.markVerified(u.mobile, u.profile.name, 'company');
+      A.flush && A.flush(); location.href = 'portal.html#relocation'; return;
+    }
     registerLead(u); prepVerify(u); show(5);
   };
   function registerLead(u) {
-    const intent = { tenant: 'rent', owner: 'lease', seller: 'sell', buyer: 'buy', builder: 'builder' }[u.role], p = u.profile;
+    const intent = { tenant: 'rent', owner: 'lease', seller: 'sell', buyer: 'buy', builder: 'builder', company: 'business' }[u.role], p = u.profile;
     const L = A.read('keetown_leads', []); if (L.some(l => l.portalMobile === u.mobile)) return;
     const areas = (p.areas || []).map(id => KT.loc(id)?.name).filter(Boolean).join(', ') || (p.locality ? KT.loc(p.locality)?.name : '');
     const bud = p.budgetMax ? (u.role === 'tenant' ? '₹' + Number(p.budgetMax).toLocaleString('en-IN') + '/mo' : KT.fmt.lakh(p.budgetMax)) : (p.rent ? '₹' + p.rent + '/mo' : p.price ? KT.fmt.lakh(+p.price) : '');

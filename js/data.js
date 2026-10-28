@@ -4,13 +4,15 @@ window.KT = (function () {
   const base = (function () { const s = document.currentScript && document.currentScript.src; return s ? s.replace(/js\/data\.js(\?.*)?$/, '') : '/'; })();
   const brand = {
  "name": "Keetown Realty",
- "phone": "919000000000",
- "phoneDisplay": "+91 90000 00000",
- "email": "hello@keetownrealty.in",
+ "phone": "916301778084",
+ "phoneDisplay": "+91 63017 78084",
+ "email": "info.keetown@gmail.com",
  "reraNo": "TS RERA Agent No. [add before launch]",
  "office": "Hyderabad, Telangana",
  "site": "https://keetown-realty.pages.dev",
- "indexing": false
+ "indexing": false,
+ "domain": "www.keetown.co.in",
+ "tagline": "Connecting You to Exceptional Spaces."
 };
   const localities = [
  {

@@ -1,0 +1,10 @@
+/* Keetown for Business page (extends manage.css) */
+.biz-two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.biz-card{display:flex;flex-direction:column;gap:12px;padding:30px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 30px 60px -48px rgba(11,26,51,.5)}
+.biz-card h3{font-family:var(--serif,inherit);font-weight:400;font-size:1.9rem;line-height:1.1}
+.biz-card p{color:var(--muted)}.biz-card .btn{align-self:flex-start;margin-top:auto}
+.bc-ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:#eef3fb;color:var(--ink)}
+.biz-steps{list-style:none;counter-reset:s;display:grid;gap:8px;margin:6px 0 10px}
+.biz-steps li{counter-increment:s;display:flex;gap:12px;align-items:center;font-size:.92rem;font-weight:500}
+.biz-steps li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.74rem;font-weight:700;background:var(--pearl);color:var(--ink)}
+@media(max-width:860px){.biz-two{grid-template-columns:1fr}.biz-card{padding:22px}}

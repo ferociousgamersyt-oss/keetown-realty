@@ -26,7 +26,7 @@
   const isOwnerSide = ['owner', 'seller', 'builder'].includes(u.role);
 
   /* ---------------- header + nav ---------------- */
-  const vBadge = () => verified() ? `<span class="badge-v ok">✓ ${u.verified.method === 'demo' ? 'Demo-verified' : 'DigiLocker verified'}</span>` : needDL ? '<span class="badge-v no">Verification pending</span>' : '<span class="badge-v opt">Unverified</span>';
+  const vBadge = () => verified() ? `<span class="badge-v ok">✓ ${u.verified.method === 'demo' ? 'Demo-verified' : u.verified.method === 'company' ? 'Verified by employer' : 'DigiLocker verified'}</span>` : needDL ? '<span class="badge-v no">Verification pending</span>' : '<span class="badge-v opt">Unverified</span>';
   function head() {
     const ib = T.inbox(u.mobile), n = ib.filter(x => x.unread).length;
     $('#who').innerHTML = `<div class="bell-w"><button class="bell" id="bell" aria-label="Notifications${n ? ', ' + n + ' unread' : ''}" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${n ? `<span class="bn">${n > 9 ? '9+' : n}</span>` : ''}</button>
@@ -43,11 +43,13 @@
     buyer: [['home', 'Overview'], ['matches', 'Prime matches'], ['purchase', 'My purchase'], ['saved', 'Shortlist'], ['searches', 'Saved searches'], ['visits', 'Visits'], ['settings', 'Settings']],
     owner: [['home', 'Overview'], ['rentals', 'Rentals & rent'], ['mine', 'My listings'], ['settings', 'Settings']],
     seller: [['home', 'Overview'], ['mine', 'My listings'], ['settings', 'Settings']],
-    builder: [['home', 'Overview'], ['mine', 'My projects'], ['settings', 'Settings']]
+    builder: [['home', 'Overview'], ['mine', 'My projects'], ['settings', 'Settings']],
+    company: [['home', 'Overview'], ['moves', 'Employee moves'], ['newmove', 'Relocate an employee'], ['office', 'Office space'], ['newoffice', 'New office requirement'], ['billing', 'Billing'], ['settings', 'Settings']]
   }[u.role];
+  if (window.KTCorp && u.role !== 'company' && KTCorp.relForEmployee(u.mobile).length) TABS.splice(1, 0, ['relocation', 'My relocation']);
   let tab = (location.hash || '#home').slice(1); if (!TABS.some(t => t[0] === tab)) tab = 'home';
   function nav() {
-    const n = { saved: store().saved.length, matches: verified() ? M.forUser(u, { primeOnly: true }).length : 0, rentals: T.forUser(u.mobile).filter(t => t.ownerMobile === u.mobile).reduce((a, t) => a + T.ledger(t).filter(r => r.status === 'overdue' || r.status === 'reported').length + t.tickets.filter(k => k.status === 'Open').length, 0), myhome: T.inbox(u.mobile).filter(x => x.unread).length };
+    const n = u.role === 'company' ? { moves: KTCorp.relForCompany(u.mobile).filter(r => r.status === 'Active' && r.stage < KTCorp.STAGES.length - 1).length } : { saved: store().saved.length, matches: verified() ? M.forUser(u, { primeOnly: true }).length : 0, rentals: T.forUser(u.mobile).filter(t => t.ownerMobile === u.mobile).reduce((a, t) => a + T.ledger(t).filter(r => r.status === 'overdue' || r.status === 'reported').length + t.tickets.filter(k => k.status === 'Open').length, 0), myhome: T.inbox(u.mobile).filter(x => x.unread).length };
     $('#pNav').innerHTML = TABS.map(([k, t]) => `<button data-t="${k}" class="${tab === k ? 'on' : ''}" ${tab === k ? 'aria-current="page"' : ''}>${t}${n[k] ? `<span class="n">${n[k]}</span>` : ''}</button>`).join('') + `<a class="p-ext" href="properties.html">Browse properties →</a>`;
     $$('#pNav button').forEach(b => b.onclick = () => go(b.dataset.t));
   }
@@ -105,6 +107,7 @@
 
   /* ---------------- overview ---------------- */
   V.home = () => {
+    if (u.role === 'company') return V.bizhome();
     const first = (u.profile.name || '').split(' ')[0];
     let kpis = [], body = '';
     if (u.role === 'tenant' || u.role === 'buyer') {
@@ -130,7 +133,7 @@
       ${reqSummary()}${body}
       <div class="pc refer"><div><h3>Refer a friend</h3><p class="sub">Know someone moving to Hyderabad or letting out a flat? Share your link. ${refs ? `<b>${refs} joined</b> through you so far.` : ''}</p></div><div class="ref-row"><input readonly value="${location.origin}/index.html?ref=${code}" aria-label="Your referral link"><button class="btn btn-line sm" id="copyRef">Copy</button><a class="btn btn-wa sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('I use Keetown Realty for verified homes in Hyderabad: ' + location.origin + '/index.html?ref=' + code)}">Share</a></div></div>`;
   };
-  B.home = () => { wireCards($('#pMain')); const c = $('#copyRef'); if (c) c.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(c.previousElementSibling.value); toast('Link copied'); }; };
+  B.home = () => { if (u.role === 'company') return B.bizhome(); wireCards($('#pMain')); const c = $('#copyRef'); if (c) c.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(c.previousElementSibling.value); toast('Link copied'); }; };
   function lockedTeaser(prime) {
     return `<div class="locked-w"><div class="mgrid blur">${prime.slice(0, 3).map(x => matchCard(x, true)).join('')}</div><div class="lock-cta"><p class="kind">${prime.length} prime ${prime.length === 1 ? 'match' : 'matches'} waiting</p><h3>Verify once to unlock your prime matches</h3><p>Prime matches are hand-picked, verified listings our algorithm ranks against your full requirement. We show them to verified clients only.</p><button class="btn btn-gold" data-verify>Verify with DigiLocker</button></div></div>`;
   }
@@ -368,6 +371,217 @@
   V.searches = () => { const list = A.read('keetown_searches_' + u.mobile, []), c = u.consent || {}; return `<h1>Saved searches</h1><p class="sub">Alerts: ${c.whatsapp ? 'WhatsApp on' : 'WhatsApp off'} · ${c.email ? 'email on' : 'email off'} — change in Settings.</p><div class="pc">${list.map((s, i) => `<div class="row-i"><div class="grow"><b>${esc(s.title)}</b><br><small>Saved ${T.fmtD(s.at)}</small></div><a class="btn btn-line sm" href="properties.html${esc(s.q)}">Open</a><button class="link" data-del="${i}">Delete</button></div>`).join('') || '<p class="fine">No saved searches. Use "Save search" on the properties page.</p>'}</div>`; };
   B.searches = () => $$('[data-del]').forEach(b => b.onclick = () => { const k = 'keetown_searches_' + u.mobile, l = A.read(k, []); l.splice(+b.dataset.del, 1); A.write(k, l); draw(); });
   V.visits = () => { const vs = store().visits; return `<h1>Visits</h1><p class="sub">We confirm slots on WhatsApp.</p><div class="pc">${vs.map(v => { const p = KT.byId(properties, v.pid); return `<div class="row-i"><div class="grow"><b>${p ? esc(p.title) : v.pid}</b><br><small>${T.fmtD(v.date)} · ${esc(v.time)}</small></div><span class="st st-due">${esc(v.status)}</span><a class="btn btn-wa sm" target="_blank" rel="noopener" href="${KT.wa(`Hi Keetown, confirming my visit for ${p ? p.title : v.pid} on ${v.date} (${v.time}).`)}">WhatsApp</a></div>`; }).join('') || '<p class="fine">No visits yet.</p>'}</div>`; };
+
+  /* ---------------- Keetown for Business (company / HR) ---------------- */
+  const C = window.KTCorp;
+  const fmtD = d => d ? T.fmtD(d) : '—';
+  const team = r => A.MODE === 'demo' || (r && r.demo) || !!(A.session() && A.session().staff);   // who may act as the Keetown coordinator
+  const locN = id => (KT.loc(id) || {}).name || '';
+  const stepper = (stages, cur) => `<ol class="stp">${stages.map((s, i) => `<li class="${i < cur ? 'd' : i === cur ? 'c' : ''}"><i></i><span>${esc(s)}</span></li>`).join('')}</ol>`;
+  const bar = p => `<span class="pbar" style="--p:${p}"><i></i></span>`;
+  const svcTag = s => `<span class="tag ${s === 'Done' || s === 'Preferred' ? 'live' : s === 'In progress' ? 'pend' : ''}">${esc(s)}</span>`;
+  const when = at => new Date(at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const thread = (list, me) => `<ul class="thr">${list.map(c => `<li class="${c.by === me ? 'me' : ''}"><small>${c.by === 'keetown' ? 'Keetown coordinator' : c.by === 'hr' ? 'HR' : 'Employee'} · ${when(c.at)}</small><p>${esc(c.text)}</p></li>`).join('') || '<li class="none">No messages yet.</li>'}</ul>`;
+  const pkgName = r => (C.PACKAGES[r.package] || { name: 'Custom' }).name;
+
+  V.bizhome = () => {
+    const rs = C.relForCompany(u.mobile), act = rs.filter(r => r.status === 'Active'), os = C.offForCompany(u.mobile);
+    const live = act.filter(r => r.stage < C.STAGES.length - 1), arriving = live.filter(r => { const d = C.daysTo(r.arrival); return d != null && d >= 0 && d <= 30; });
+    const settled = act.filter(r => r.stage === C.STAGES.length - 1), avg = settled.length ? Math.round(settled.reduce((a, r) => a + (new Date(r.settledOn || r.created) - new Date(r.created)) / 864e5, 0) / settled.length) : null;
+    const first = (u.profile.name || '').split(' ')[0];
+    return `<h1>Welcome${first ? ', ' + esc(first) : ''}</h1><p class="sub">${esc(u.profile.company || 'Your company')} · Keetown for Business</p>
+      ${u.quick ? `<div class="banner soft"><p><b>Complete your company profile</b> so invoices and coordinators have the right details.</p><button class="btn btn-gold" data-edit>Complete profile</button></div>` : ''}
+      <div class="kpis"><button class="kpi" data-go="moves"><b>${live.length}</b><span>Moves in progress</span></button><button class="kpi" data-go="moves"><b>${arriving.length}</b><span>Arriving in 30 days</span></button>
+      <button class="kpi" data-go="moves"><b>${settled.length}</b><span>Employees settled</span></button><button class="kpi" data-go="moves"><b>${avg != null ? avg + ' days' : '—'}</b><span>Average time to settle</span></button><button class="kpi" data-go="office"><b>${os.filter(o => o.status === 'Active').length}</b><span>Office searches</span></button></div>
+      ${(() => { const w = act.filter(r => r.lock && r.lock.status === 'Awaiting company approval'); return w.length ? `<div class="banner alert"><p><b>${w.length} home${w.length > 1 ? 's' : ''} awaiting your approval.</b> ${w.map(r => esc(r.employeeName) + ': ' + esc(r.lock.title) + ' (' + inr(r.lock.rent) + ')').join(' · ')}</p><button class="btn btn-gold" data-rl="${w[0].id}">Review</button></div>` : ''; })()}
+      <div class="biz-acts"><button class="btn btn-gold" data-go="newmove">+ Relocate an employee</button><button class="btn btn-line" data-go="newoffice">+ Find office space</button></div>
+      <h2 class="sec-h">Moves in progress</h2>${live.length ? `<div class="pc">${live.map(moveRow).join('')}</div>` : '<div class="empty-box"><p>No active relocations. Add an employee and our coordinator calls them within one working day.</p></div>'}
+      ${os.length ? `<h2 class="sec-h">Office space</h2><div class="pc">${os.map(officeRow).join('')}</div>` : ''}
+      <div class="pc svc-grid"><h3>What Keetown handles for your people</h3><ul>${Object.values(C.SERVICES).map(([n, d]) => `<li><b>${esc(n)}</b><span>${esc(d)}</span></li>`).join('')}</ul></div>`;
+  };
+  const moveRow = r => { const d = C.daysTo(r.arrival); return `<div class="row-i mv" data-rl="${r.id}" role="button" tabindex="0"><div class="grow"><b>${esc(r.employeeName)}</b> <small>· ${esc(r.level || '')}${r.fromCity ? ' · from ' + esc(r.fromCity) : ''}</small><br><small>${r.status === 'Cancelled' ? 'Cancelled' : esc(C.STAGES[r.stage])} · arrives ${fmtD(r.arrival)}${d != null && d >= 0 && d <= 30 && r.stage < C.STAGES.length - 1 ? ` <b class="soon">in ${d} days</b>` : ''} · ${esc(pkgName(r))}${r.lock && r.lock.status === 'Awaiting company approval' ? ' · <b class="soon">approval needed</b>' : ''}</small></div>${bar(C.relProgress(r))}<span class="btn btn-line sm">Open</span></div>`; };
+  const officeRow = o => `<div class="row-i mv" data-of="${o.id}" role="button" tabindex="0"><div class="grow"><b>${o.seats ? o.seats + ' seats' : (o.area || '') + ' sq.ft'} · ${esc(o.type)}</b><br><small>${esc(o.areas.map(locN).join(', ') || 'Any location')} · ${esc(C.OFFICE_STAGES[o.stage])} · start by ${fmtD(o.startBy)}</small></div>${bar(Math.round(o.stage / (C.OFFICE_STAGES.length - 1) * 100))}<span class="btn btn-line sm">Open</span></div>`;
+  function bizWire() {
+    const on = (el, fn) => { el.onclick = fn; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } }; };
+    $$('[data-rl]').forEach(x => on(x, () => moveDialog(x.dataset.rl))); $$('[data-of]').forEach(x => on(x, () => officeDialog(x.dataset.of)));
+  }
+  B.bizhome = () => bizWire();
+
+  let mvFilter = 'active';
+  V.moves = () => {
+    const all = C.relForCompany(u.mobile), last = C.STAGES.length - 1;
+    const list = all.filter(r => mvFilter === 'all' ? true : mvFilter === 'settled' ? r.stage === last && r.status === 'Active' : mvFilter === 'cancelled' ? r.status === 'Cancelled' : r.status === 'Active' && r.stage < last);
+    const board = C.STAGES.map((s, i) => { const col = all.filter(r => r.status === 'Active' && r.stage === i); return `<div class="kb-col"><h4>${esc(s)} <span>${col.length}</span></h4>${col.map(r => `<button class="kb-card" data-rl="${r.id}"><b>${esc(r.employeeName)}</b><small>${fmtD(r.arrival)}</small></button>`).join('')}</div>`; }).join('');
+    return `<h1>Employee moves</h1><p class="sub">Every relocation, from the first call to settled.</p>
+      <div class="biz-acts"><button class="btn btn-gold" data-go="newmove">+ Relocate an employee</button></div>
+      <div class="kb">${board}</div>
+      <div class="seg-mini">${[['active', 'In progress'], ['settled', 'Settled'], ['cancelled', 'Cancelled'], ['all', 'All']].map(([k, t]) => `<button data-mf="${k}" class="${mvFilter === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="pc">${list.map(moveRow).join('') || '<p class="sub" style="margin:0">Nothing here.</p>'}</div>`;
+  };
+  B.moves = () => { bizWire(); $$('[data-mf]').forEach(b => b.onclick = () => { mvFilter = b.dataset.mf; draw(); }); };
+
+  function moveDialog(id) {
+    const r = C.relGet(id); if (!r) return toast('This relocation is no longer available.');
+    const tm = team(r), role = u.role === 'company' ? 'hr' : 'employee', open = r.status === 'Active';
+    const invite = `Hi ${r.employeeName.split(' ')[0]}, ${r.companyName} has arranged your Hyderabad move with Keetown Realty. Log in with this mobile number to see your relocation plan, homes that fit your allowance and next steps: ${location.origin}/login.html?role=tenant`;
+    dlg.innerHTML = `<div class="m-body wide"><p class="kind">${esc(r.companyName)} · ${esc(pkgName(r))} package</p><h2 class="dlg-h">${esc(r.employeeName)}${open ? '' : ' <span class="tag">Cancelled</span>'}</h2>
+      <p class="sub">${esc(r.level)}${r.fromCity ? ' · moving from ' + esc(r.fromCity) : ''} · ${esc(r.family)} · arrives ${fmtD(r.arrival)} · joins ${fmtD(r.joinDate)}</p>
+      ${stepper(C.STAGES, r.stage)}
+      <div class="kv2"><div><small>Housing budget</small><b>${r.budget ? (r.intent === 'rent' ? inr(r.budget) + ' / month' : fmt.lakh(r.budget)) : '—'}</b></div><div><small>Preferred areas</small><b>${esc(r.areas.map(locN).join(', ') || 'Open')}</b></div><div><small>Office</small><b>${esc(locN(r.office) || '—')}</b></div><div><small>Temporary stay</small><b>${r.tempNights ? r.tempNights + ' nights' : 'Not needed'}</b></div><div><small>Billing</small><b>${esc(r.billing)}${r.costCenter ? ' · ' + esc(r.costCenter) : ''}</b></div><div><small>Employee</small><b>+91 ${esc(r.employeeMobile)}</b></div></div>
+      ${r.notes ? `<p class="val">${esc(r.notes)}</p>` : ''}
+      ${r.lock ? `<h3 class="dh">Home</h3>${lockCard(r, role)}${role === 'hr' && r.lock.status === 'Awaiting company approval' ? '<div class="coord"><b>' + esc(r.employeeName.split(' ')[0]) + ' wants this home.</b><div><button class="btn btn-line sm" id="lkDec">Decline</button><button class="btn btn-gold sm" id="lkOk">Approve</button></div></div>' : ''}${tm && r.lock.status.startsWith('Approved') ? '<div class="coord"><b>' + (A.MODE === 'demo' || r.demo ? 'Demo: act as Keetown' : 'Keetown') + ': owner confirmed?</b><div><button class="btn btn-gold sm" id="lkLock">Mark locked</button></div></div>' : ''}` : ''}
+      <h3 class="dh">Services</h3><ul class="svcl">${r.services.map(s => `<li><span><b>${esc(C.SERVICES[s.key][0])}</b><small>${esc(C.SERVICES[s.key][1])}</small></span>${tm && open ? `<select data-svc="${s.key}" aria-label="Status: ${esc(C.SERVICES[s.key][0])}">${C.SVC_STATUS.map(x => `<option ${x === s.status ? 'selected' : ''}>${x}</option>`).join('')}</select>` : svcTag(s.status)}</li>`).join('')}</ul>
+      ${tm && open ? `<div class="coord"><b>${A.MODE === 'demo' || r.demo ? 'Demo: act as the Keetown coordinator' : 'Keetown coordinator'}</b><div><button class="btn btn-line sm" id="stBack" ${r.stage === 0 ? 'disabled' : ''}>← Stage</button><button class="btn btn-gold sm" id="stNext" ${r.stage === C.STAGES.length - 1 ? 'disabled' : ''}>Next stage →</button></div></div>` : ''}
+      <h3 class="dh">Messages</h3>${thread(r.comments, role)}
+      ${open ? `<form id="cmF" class="cm-f"><input name="t" placeholder="Write to the Keetown coordinator…" required maxlength="1000"><button class="btn btn-gold sm">Send</button></form>` : ''}
+      <details class="logd"><summary>Activity (${r.log.length})</summary><ul>${r.log.map(l => `<li><small>${when(l.at)}</small> ${esc(l.text)}</li>`).join('')}</ul></details>
+      <div class="acts-row">${role === 'hr' && open ? `<a class="btn btn-wa sm" target="_blank" rel="noopener" href="https://wa.me/91${esc(r.employeeMobile)}?text=${encodeURIComponent(invite)}">Invite ${esc(r.employeeName.split(' ')[0])} on WhatsApp</a><button class="btn btn-line sm danger" id="rlCancel">Cancel move</button>` : ''}<button class="btn btn-line sm" id="dClose">Close</button></div></div>`;
+    if (!dlg.open) dlg.showModal();
+    const re = () => { draw(); moveDialog(id); };
+    $('#dClose', dlg).onclick = () => dlg.close();
+    const cf = $('#cmF', dlg); if (cf) cf.onsubmit = e => { e.preventDefault(); const t = e.target.t.value.trim(); if (!t) return; C.relComment(C.relGet(id), t, role); re(); toast('Sent to your Keetown coordinator'); };
+    $$('[data-svc]', dlg).forEach(s => s.onchange = () => { C.relService(C.relGet(id), s.dataset.svc, s.value); re(); });
+    const nb = $('#stNext', dlg); if (nb) { nb.onclick = () => { C.relStage(C.relGet(id), r.stage + 1); re(); }; $('#stBack', dlg).onclick = () => { C.relStage(C.relGet(id), r.stage - 1); re(); }; }
+    const lo = $('#lkOk', dlg); if (lo) { lo.onclick = () => { C.relLockDecide(C.relGet(id), true); re(); toast('Approved. Keetown is confirming with the owner.'); }; $('#lkDec', dlg).onclick = () => { const n = prompt('Reason (shared with the employee):', 'Above our housing policy'); if (n === null) return; C.relLockDecide(C.relGet(id), false, n); re(); }; }
+    const ll = $('#lkLock', dlg); if (ll) ll.onclick = () => { C.relLockConfirm(C.relGet(id)); re(); toast('Home locked'); };
+    const cx = $('#rlCancel', dlg); if (cx) cx.onclick = () => { if (confirm('Cancel this relocation? The Keetown team will be notified.')) { C.relCancel(C.relGet(id)); re(); } };
+  }
+
+  V.newmove = () => {
+    const pk = Object.entries(C.PACKAGES), today = new Date().toISOString().slice(0, 10);
+    return `<h1>Relocate an employee</h1><p class="sub">Our coordinator calls the employee within one working day. Fees are indicative until your agreement is signed.</p>
+      <form class="pc" id="nmF" novalidate>
+        <h3>Employee</h3>
+        <div class="two"><label class="fl">Full name *<input name="employeeName" required maxlength="80"></label><label class="fl">Mobile (India) *<input name="employeeMobile" inputmode="numeric" maxlength="10" placeholder="98XXXXXXXX"></label></div>
+        <div class="two"><label class="fl">Work email<input type="email" name="employeeEmail"></label><label class="fl">Role / level<input name="level" placeholder="e.g. Senior Engineer" maxlength="80"></label></div>
+        <div class="two"><label class="fl">Moving from<input name="fromCity" placeholder="City or country" maxlength="60"></label><label class="fl">Family<select name="family"><option>Single</option><option>Couple</option><option>Couple + 1 child</option><option>Family of 4</option><option>Family of 5+</option></select></label></div>
+        <div class="two"><label class="fl">Arrives in Hyderabad *<input type="date" name="arrival" min="${today}"></label><label class="fl">Joining date<input type="date" name="joinDate"></label></div>
+        <h3>Home</h3>
+        <div class="two"><label class="fl">Looking to<select name="intent"><option value="rent">Rent</option><option value="buy">Buy</option></select></label><label class="fl"><span id="budL">Housing budget (₹ per month)</span><input name="budget" inputmode="numeric" placeholder="e.g. 60000"></label></div>
+        <div class="two"><label class="fl">Bedrooms<select name="beds"><option value="">Any</option><option value="1">1 BHK</option><option value="2">2 BHK</option><option value="3">3 BHK</option><option value="4">4+ BHK</option></select></label><label class="fl">Office locality<select name="office">${KT.localities.map(l => `<option value="${l.id}" ${u.profile.office === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label></div>
+        <fieldset><legend>Preferred areas (optional, we suggest by commute)</legend><div class="pills">${KT.localities.map(l => `<label><input type="checkbox" name="areas" value="${l.id}"><span>${esc(l.name)}</span></label>`).join('')}</div></fieldset>
+        <h3>Package</h3>
+        <div class="pk">${pk.map(([k, p], i) => `<label class="pk-o"><input type="radio" name="package" value="${k}" ${i === 1 ? 'checked' : ''}><span><b>${p.name}</b><em>${inr(p.fee)} / move*</em><small>${esc(p.blurb)}</small><ul>${p.services.map(s => `<li>${esc(C.SERVICES[s][0])}</li>`).join('')}</ul></span></label>`).join('')}
+          <label class="pk-o"><input type="radio" name="package" value="custom"><span><b>Custom</b><em>Pick services</em><small>Only what this move needs.</small><div class="pk-c">${Object.entries(C.SERVICES).map(([k, [n]]) => `<label><input type="checkbox" name="services" value="${k}" ${k === 'consult' ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div></span></label></div>
+        <div class="two"><label class="fl">Temporary stay (nights)<input name="tempNights" inputmode="numeric" placeholder="0"></label><label class="fl">Billing<select name="billing"><option>Company pays Keetown</option><option>Employee pays, company reimburses</option></select></label></div>
+        <div class="two"><label class="fl">Cost centre / PO (optional)<input name="costCenter" maxlength="40"></label><label class="fl">Notes for the coordinator<input name="notes" placeholder="Pets, school needs, special requests" maxlength="500"></label></div>
+        <p class="fine">*Indicative fee per move, excluding GST, rent, deposits and third-party costs (hotel, movers). Final fees as per your signed agreement.</p>
+        <p class="err" id="nmE" role="alert"></p><button class="btn btn-gold" id="nmGo">Submit relocation request</button>
+      </form>`;
+  };
+  B.newmove = () => {
+    const f = $('#nmF'); f.employeeMobile.oninput = () => f.employeeMobile.value = f.employeeMobile.value.replace(/\D/g, '').slice(0, 10);
+    ['budget', 'tempNights'].forEach(n => f[n].oninput = () => f[n].value = f[n].value.replace(/\D/g, '').slice(0, 9));
+    f.intent.onchange = () => { $('#budL').textContent = f.intent.value === 'rent' ? 'Housing budget (₹ per month)' : 'Purchase budget (₹ lakh)'; f.budget.placeholder = f.intent.value === 'rent' ? 'e.g. 60000' : 'e.g. 150'; };
+    f.onsubmit = e => {
+      e.preventDefault(); const fd = new FormData(f), d = Object.fromEntries(fd); d.areas = fd.getAll('areas'); d.services = fd.getAll('services');
+      const dup = C.relForCompany(u.mobile).some(r => r.status === 'Active' && r.employeeMobile === d.employeeMobile && r.stage < C.STAGES.length - 1);
+      const err = !d.employeeName.trim() ? 'Enter the employee’s name.' : !A.validMobile(d.employeeMobile) ? 'Enter a valid 10-digit Indian mobile number.' : d.employeeMobile === u.mobile ? 'Use the employee’s own mobile number, not yours.' : dup ? 'This employee already has a move in progress.' : !d.arrival ? 'Choose the arrival date.' : d.employeeEmail && !/^\S+@\S+\.\S+$/.test(d.employeeEmail) ? 'Enter a valid work email.' : d.package === 'custom' && !d.services.length ? 'Pick at least one service.' : '';
+      if (err) return $('#nmE').textContent = err;
+      $('#nmGo').disabled = true; d.employeeName = d.employeeName.trim();
+      const r = C.relCreate(u, d); C.lead(u, 'relocation', `Relocation: ${r.employeeName} from ${r.fromCity || '—'}, arrives ${fmtD(r.arrival)}, ${pkgName(r)}`);
+      window.KTTrack && KTTrack.event('relocation_requested', { package: r.package });
+      go('moves'); toast('Request sent. Our coordinator will call ' + r.employeeName.split(' ')[0] + ' within one working day.'); moveDialog(r.id);
+    };
+  };
+
+  V.office = () => { const os = C.offForCompany(u.mobile); return `<h1>Office space</h1><p class="sub">Managed offices, coworking and leased floors across Hyderabad's business districts.</p>
+      <div class="biz-acts"><button class="btn btn-gold" data-go="newoffice">+ New office requirement</button></div>
+      ${os.length ? `<div class="pc">${os.map(officeRow).join('')}</div>` : '<div class="empty-box"><p>Tell us seats, locations and budget. We share a verified shortlist within 3 working days.</p></div>'}
+      <div class="pc svc-grid"><h3>How we run an office search</h3><ul>${C.OFFICE_STAGES.map((s, i) => `<li><b>${i + 1}. ${esc(s)}</b><span>${esc(C.OFFICE_STEPS[i])}</span></li>`).join('')}</ul></div>`; };
+  B.office = () => bizWire();
+
+  V.newoffice = () => `<h1>New office requirement</h1><p class="sub">A verified shortlist arrives within 3 working days.</p>
+    <form class="pc" id="noF" novalidate>
+      <div class="two"><label class="fl">Seats needed<input name="seats" inputmode="numeric" placeholder="e.g. 80"></label><label class="fl">Or carpet area (sq.ft)<input name="area" inputmode="numeric" placeholder="e.g. 6000"></label></div>
+      <div class="two"><label class="fl">Type<select name="type">${C.OFFICE_TYPES.map(t => `<option>${t}</option>`).join('')}</select></label><label class="fl">Start by<input type="date" name="startBy" min="${new Date().toISOString().slice(0, 10)}"></label></div>
+      <fieldset><legend>Locations *</legend><div class="pills">${KT.localities.map(l => `<label><input type="checkbox" name="areas" value="${l.id}" ${u.profile.office === l.id ? 'checked' : ''}><span>${esc(l.name)}</span></label>`).join('')}</div></fieldset>
+      <div class="two"><label class="fl">Budget (₹)<input name="budget" inputmode="numeric" placeholder="e.g. 9000"></label><label class="fl">Budget is<select name="budgetUnit"><option>per seat / month</option><option>per sq.ft / month</option><option>total / month</option></select></label></div>
+      <div class="two"><label class="fl">Lease term (years)<select name="termYears"><option>1</option><option>2</option><option selected>3</option><option>5</option><option>9</option></select></label><label class="fl">Car parks needed<input name="parking" inputmode="numeric" placeholder="e.g. 20"></label></div>
+      <fieldset><legend>Must-haves</legend><div class="pills">${['24×7 access', 'DG power backup', 'Cafeteria', 'Meeting rooms', 'Server room', 'Metro / bus access', 'SEZ', 'Branding rights'].map(n => `<label><input type="checkbox" name="needs" value="${n}"><span>${n}</span></label>`).join('')}</div></fieldset>
+      <label class="fl">Notes<textarea name="notes" rows="3" maxlength="1000" placeholder="Growth plans, layout, client-facing areas…"></textarea></label>
+      <p class="err" id="noE" role="alert"></p><button class="btn btn-gold" id="noGo">Submit office requirement</button></form>`;
+  B.newoffice = () => {
+    const f = $('#noF'); ['seats', 'area', 'budget', 'parking'].forEach(n => f[n].oninput = () => f[n].value = f[n].value.replace(/\D/g, '').slice(0, 9));
+    f.onsubmit = e => {
+      e.preventDefault(); const fd = new FormData(f), d = Object.fromEntries(fd); d.areas = fd.getAll('areas'); d.needs = fd.getAll('needs');
+      const err = !(+d.seats || +d.area) ? 'Enter seats or carpet area.' : !d.areas.length ? 'Choose at least one location.' : '';
+      if (err) return $('#noE').textContent = err;
+      $('#noGo').disabled = true;
+      const o = C.offCreate(u, d); C.lead(u, 'office', `Office: ${o.seats ? o.seats + ' seats' : o.area + ' sq.ft'}, ${o.type}, ${o.areas.map(locN).join('/')}`);
+      window.KTTrack && KTTrack.event('office_requested', { seats: o.seats });
+      go('office'); toast('Requirement received. Shortlist within 3 working days.'); officeDialog(o.id);
+    };
+  };
+
+  function officeDialog(id) {
+    const o = C.offGet(id); if (!o) return toast('This requirement is no longer available.'); const tm = team(o), cand = C.offMatches(o);
+    dlg.innerHTML = `<div class="m-body wide"><p class="kind">Office space · ${esc(o.companyName)}</p><h2 class="dlg-h">${o.seats ? o.seats + ' seats' : o.area + ' sq.ft'} · ${esc(o.type)}</h2>
+      <p class="sub">${esc(o.areas.map(locN).join(', '))} · budget ${o.budget ? inr(o.budget) + ' ' + esc(o.budgetUnit) : 'open'} · ${o.termYears}-year term · start by ${fmtD(o.startBy)}</p>
+      ${stepper(C.OFFICE_STAGES, o.stage)}
+      <h3 class="dh">Shortlist</h3>${o.shortlist.length ? `<ul class="svcl">${o.shortlist.map((s, i) => `<li><span><b>${esc(s.name)}</b><small>${s.area ? s.area.toLocaleString('en-IN') + ' sq.ft · ' : ''}${esc(s.rent || '')}${s.note ? ' · ' + esc(s.note) : ''}</small></span><span class="sl-a">${svcTag(s.status)}${s.status !== 'Rejected' && s.status !== 'Preferred' ? `<button class="link" data-sl="${i}" data-v="Preferred">Prefer</button><button class="link" data-sl="${i}" data-v="Rejected">Reject</button>` : ''}</span></li>`).join('')}</ul>` : '<p class="sub">Our team is preparing your shortlist.</p>'}
+      ${tm ? `<form class="cm-f" id="slF"><input name="n" placeholder="Add an option to the shortlist (name · rent · note)" maxlength="200"><button class="btn btn-line sm">Add</button></form>` : ''}
+      ${cand.length ? `<p class="fine">Commercial listings on Keetown in your areas: ${cand.map(p => `<a href="${url.property(p)}">${esc(p.title)}</a>`).join(' · ')}</p>` : ''}
+      ${tm ? `<div class="coord"><b>${A.MODE === 'demo' || o.demo ? 'Demo: act as the Keetown coordinator' : 'Keetown coordinator'}</b><div><button class="btn btn-line sm" id="stBack" ${o.stage === 0 ? 'disabled' : ''}>← Stage</button><button class="btn btn-gold sm" id="stNext" ${o.stage === C.OFFICE_STAGES.length - 1 ? 'disabled' : ''}>Next stage →</button></div></div>` : ''}
+      <h3 class="dh">Due-diligence checklist</h3><ul class="chk2">${o.checks.map((c, i) => `<li class="${c.status === 'Cleared' ? 'ok' : ''}">${esc(c.name)}${tm ? `<button class="link" data-ck="${i}">${c.status === 'Cleared' ? 'Cleared ✓' : 'Mark cleared'}</button>` : `<small>${esc(c.status)}</small>`}</li>`).join('')}</ul>
+      <h3 class="dh">Messages</h3>${thread(o.comments, 'hr')}
+      <form id="cmF" class="cm-f"><input name="t" placeholder="Write to the Keetown team…" required maxlength="1000"><button class="btn btn-gold sm">Send</button></form>
+      <details class="logd"><summary>Activity (${o.log.length})</summary><ul>${o.log.map(l => `<li><small>${when(l.at)}</small> ${esc(l.text)}</li>`).join('')}</ul></details>
+      <div class="acts-row"><button class="btn btn-line sm" id="dClose">Close</button></div></div>`;
+    if (!dlg.open) dlg.showModal();
+    const re = () => { draw(); officeDialog(id); };
+    $('#dClose', dlg).onclick = () => dlg.close();
+    $('#cmF', dlg).onsubmit = e => { e.preventDefault(); const t = e.target.t.value.trim(); if (!t) return; C.offComment(C.offGet(id), t, 'hr'); re(); toast('Sent'); };
+    $$('[data-sl]', dlg).forEach(b => b.onclick = () => { C.offShort(C.offGet(id), +b.dataset.sl, b.dataset.v); re(); });
+    $$('[data-ck]', dlg).forEach(b => b.onclick = () => { C.offCheck(C.offGet(id), +b.dataset.ck); re(); });
+    const sf = $('#slF', dlg); if (sf) sf.onsubmit = e => { e.preventDefault(); const [name, rent, note] = e.target.n.value.split('·').map(x => x.trim()); if (!name) return; C.offAddOption(C.offGet(id), { name, rent: rent || '', note: note || '' }); re(); };
+    const nb = $('#stNext', dlg); if (nb) { nb.onclick = () => { C.offStage(C.offGet(id), o.stage + 1); re(); }; $('#stBack', dlg).onclick = () => { C.offStage(C.offGet(id), o.stage - 1); re(); }; }
+  }
+
+  V.billing = () => {
+    const rs = C.relForCompany(u.mobile).filter(r => r.status === 'Active'), tot = rs.reduce((a, r) => a + C.relFee(r), 0);
+    return `<h1>Billing</h1><p class="sub">Indicative fees per move. Invoices are raised with GST against your agreement${u.profile.gst ? ' (GSTIN ' + esc(u.profile.gst) + ')' : ''}.</p>
+      <div class="kpis"><div class="kpi"><b>${inr(tot)}</b><span>Indicative fees, active moves</span></div><div class="kpi"><b>${rs.length}</b><span>Billable moves</span></div></div>
+      <div class="pc tbl-w"><table class="tbl"><thead><tr><th>Employee</th><th>Package</th><th>Cost centre</th><th>Billing</th><th>Status</th><th class="r">Fee*</th></tr></thead><tbody>${rs.map(r => `<tr><td>${esc(r.employeeName)}</td><td>${esc(pkgName(r))}</td><td>${esc(r.costCenter || '—')}</td><td>${esc(r.billing)}</td><td>${r.stage === C.STAGES.length - 1 ? '<span class="tag live">Invoice due</span>' : '<span class="tag">In progress</span>'}</td><td class="r">${inr(C.relFee(r))}</td></tr>`).join('') || '<tr><td colspan="6">No moves yet.</td></tr>'}</tbody></table>
+      <p class="fine">*Excluding GST, rent, deposits and third-party costs (hotel, movers, schools). Placeholder rates until your agreement is signed.</p></div>
+      ${(() => { const h = rs.filter(r => r.lock && r.lock.mode === 'rent' && r.lock.status !== 'Declined'); const tc = h.filter(r => r.lock.status === 'Locked').reduce((a, r) => a + r.lock.companyPays, 0); return `<h2 class="sec-h">Rent paid from allowances</h2><div class="pc tbl-w"><table class="tbl"><thead><tr><th>Employee</th><th>Home</th><th>Status</th><th class="r">Allowance</th><th class="r">Company pays</th><th class="r">Employee pays</th></tr></thead><tbody>${h.map(r => `<tr><td>${esc(r.employeeName)}</td><td>${esc(r.lock.title)}</td><td>${esc(r.lock.status)}</td><td class="r">${inr(r.budget)}</td><td class="r">${inr(r.lock.companyPays)}</td><td class="r">${inr(r.lock.employeePays)}</td></tr>`).join('') || '<tr><td colspan="6">No homes locked yet.</td></tr>'}</tbody></table><p class="fine">Committed monthly rent for locked homes: <b>${inr(tc)}</b>. Rent goes to the owner each month against the lease; Keetown tracks it like any tenancy.</p></div>`; })()}`;
+  };
+
+  /* employee side: "My relocation" — details arrive pre-filled from the company's request */
+  const lockCard = (r, who) => { const l = r.lock; if (!l) return ''; const st = l.status, ok = st === 'Locked', dec = st === 'Declined';
+    return `<div class="lockc ${ok ? 'ok' : dec ? 'no' : ''}"><div><p class="kind">${ok ? 'Your home is locked' : dec ? 'Not approved' : 'Home lock in progress'}</p><h3>${esc(l.title)}</h3>
+      <p class="sub">${esc(locN(l.loc))} · ${l.mode === 'rent' ? inr(l.rent) + ' / month' : fmt.lakh(l.rent)}</p>
+      <div class="pay3"><div><small>Company pays${l.mode === 'rent' ? ' from allowance' : ''}</small><b>${l.mode === 'rent' ? inr(l.companyPays) + ' / mo' : '—'}</b></div><div><small>${who === 'hr' ? 'Employee share' : 'Your share'}</small><b>${l.mode === 'rent' ? inr(l.employeePays) + ' / mo' : '—'}</b></div><div><small>Status</small><b>${esc(st)}</b></div></div>
+      ${l.note ? `<p class="val">${esc(l.note)}</p>` : ''}</div>${stepper(['Requested', 'Company approved', 'Locked with owner'], ok ? 3 : st.startsWith('Approved') ? 2 : dec ? 0 : 1)}</div>`; };
+  V.relocation = () => {
+    const rs = C.relForEmployee(u.mobile); if (!rs.length) return '<h1>My relocation</h1><p class="sub">No relocation linked to +91 ' + u.mobile + '.</p>';
+    return rs.map(r => {
+      const homes = C.nearOffice(r), canLock = !r.lock || r.lock.status === 'Declined', o = locN(r.office);
+      return `<h1>Your move to Hyderabad</h1><p class="sub">Arranged by ${esc(r.companyName)} · arriving ${fmtD(r.arrival)}${r.intent === 'rent' && r.budget ? ' · rent allowance ' + inr(r.budget) + ' / month' : ''}</p>${stepper(C.STAGES, r.stage)}
+        ${lockCard(r, 'employee')}
+        <h2 class="sec-h">${canLock ? 'Pick your home' : 'Other homes'} near ${esc(o || 'your office')}</h2>
+        <p class="sub">Sorted by distance from your office. ${r.intent === 'rent' ? `Rent up to ${inr(r.budget)} is paid by ${esc(r.companyName)}; above that, the difference is yours.` : ''}${canLock ? ' Lock one home; your company approves and we confirm it with the owner.' : ''}</p>
+        <div class="mgrid">${homes.map(({ p, km, held, over }) => { const l = loc(p.loc), sp = C.split(r, p.price), mine = r.lock && r.lock.pid === p.id;
+          return `<article class="mcard hc${held ? ' held' : ''}"><a class="mc-art" href="${url.property(p)}">${KTArt(p, 400, 225)}</a><div class="mc-body">
+            <div class="mc-top"><div><h4><a href="${url.property(p)}">${esc(p.title)}</a></h4><p class="mc-sub">${esc(l.name)} · ${p.beds ? p.beds + ' BHK · ' : ''}${fmt.price(p)}</p></div></div>
+            <ul class="why">${km != null ? `<li class="${km <= 6 ? 'ok' : 'no'}">${km < 1 ? 'Under 1 km' : km.toFixed(1) + ' km'} from office</li>` : ''}${p.verified ? '<li class="ok">Verified</li>' : ''}${r.intent === 'rent' ? (over ? `<li class="no">You pay ${inr(sp.employee)}/mo</li>` : '<li class="ok">Fully covered</li>') : ''}</ul>
+            <div class="mc-acts">${held && !mine ? '<span class="tag">Reserved</span>' : mine ? `<span class="tag live">${esc(r.lock.status)}</span>` : canLock ? `<button class="btn btn-gold sm" data-lock="${r.id}|${p.id}">Lock this home</button>` : ''}<a class="btn btn-line sm" href="${url.property(p)}">Details</a></div></div></article>`; }).join('') || '<div class="empty-box"><p>No homes in your allowance yet. Your coordinator is sourcing off-market options.</p></div>'}</div>
+        <div class="pc"><h3>Your services</h3><ul class="svcl">${r.services.map(s => `<li><span><b>${esc(C.SERVICES[s.key][0])}</b><small>${esc(C.SERVICES[s.key][1])}</small></span>${svcTag(s.status)}</li>`).join('')}</ul></div>
+        <div class="pc"><h3>Messages with your coordinator</h3>${thread(r.comments, 'employee')}<form class="cm-f" data-cm="${r.id}"><input name="t" placeholder="Ask anything about your move…" required maxlength="1000"><button class="btn btn-gold sm">Send</button></form></div>`; }).join('');
+  };
+  B.relocation = () => {
+    $$('[data-cm]').forEach(f => f.onsubmit = e => { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; C.relComment(C.relGet(f.dataset.cm), t, 'employee'); draw(); toast('Sent to your coordinator'); });
+    $$('[data-lock]').forEach(b => b.onclick = () => {
+      const [rid, pid] = b.dataset.lock.split('|'), r = C.relGet(rid), p = KT.byId(properties, pid), sp = C.split(r, p.price);
+      dlg.innerHTML = `<div class="m-body"><p class="kind">Lock this home</p><h2 class="dlg-h">${esc(p.title)}</h2><p class="sub">${esc(loc(p.loc).name)} · ${fmt.price(p)}</p>
+        ${p.mode === 'rent' ? `<div class="pay3"><div><small>${esc(r.companyName)} pays</small><b>${inr(sp.company)} / mo</b></div><div><small>You pay</small><b>${inr(sp.employee)} / mo</b></div><div><small>Allowance</small><b>${r.budget ? inr(r.budget) : 'Not set'}</b></div></div>` : ''}
+        <p class="fine">Locking asks ${esc(r.companyName)} to approve. Once approved, Keetown confirms with the owner and reserves the home for you. You can lock one home at a time.</p>
+        <div class="acts-row"><button class="btn btn-gold" id="lkGo">Request lock</button><button class="btn btn-line" id="lkNo">Cancel</button></div><p class="err" id="lkE" role="alert"></p></div>`;
+      dlg.showModal(); $('#lkNo', dlg).onclick = () => dlg.close();
+      $('#lkGo', dlg).onclick = async () => { $('#lkGo', dlg).disabled = true; await C.loadLocks(); try { C.relLock(C.relGet(rid), p); dlg.close(); draw(); toast('Lock requested. ' + r.companyName + ' will approve shortly.'); } catch (e) { $('#lkE', dlg).textContent = e.message; } };
+    });
+  };
+  if (window.KTCorp) C.loadLocks().then(() => { if (tab === 'relocation') draw(); });
 
   /* ---------------- settings ---------------- */
   V.settings = () => { const c = u.consent || {}; return `<h1>Settings</h1><p class="sub">You control how Keetown contacts you.</p>

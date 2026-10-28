@@ -43,6 +43,30 @@
   $$('.f-intent input').forEach(i => i.onchange = intent); requestAnimationFrame(intent); addEventListener('load', intent); addEventListener('resize', intent);
   f.onsubmit = e => { e.preventDefault(); const d = Object.fromEntries(new FormData(f)), q = new URLSearchParams({ intent: d.intent }); if (d.loc) q.set('loc', d.loc); if (d.bmax) q.set('bmax', d.bmax); if (d.beds) q.set('beds', d.beds === '4' ? '4,5' : d.beds); location.href = 'properties.html?' + q; };
 
+  /* ---------------- hero: services by client type ---------------- */
+  (function services() {
+    const S = {
+      tenant: { t: 'Rent a verified home, then live in it without hassle.', l: ['Verified owners and homes', 'Prime matches to your budget and commute', 'Agreement and police verification', 'Rent reminders, UPI pay and HRA receipts', 'Repair requests the owner sees instantly'], search: 'rent', cta: [['login.html?role=tenant', 'Get prime matches']] },
+      buyer: { t: 'Buy with every paper checked before you pay a token.', l: ['Legal-first title and approval checks', 'Planned site visits', 'EMI and 6% registration planned upfront', 'Payment milestones tracked to possession', 'Handover and mutation checklist'], search: 'buy', cta: [['login.html?role=buyer', 'Tell us what you need']] },
+      owner: { t: 'Own it. Don’t worry about it. Complete property management.', l: ['Tenant sourcing, rent collection and renewals', 'Maintenance, repairs and vendor coordination', 'Utilities, tax and documentation support', 'Regular statements, clear visibility', 'NRI concierge with video inspections'], cta: [['management.html', 'See management plans'], ['post-property.html', 'Post property free']] },
+      seller: { t: 'Secondary sales: the right price, verified buyers, clean paperwork.', l: ['Owner-side pricing guidance', 'Buyer matching with verified buyers', 'Legal and documentation coordination', 'Support through to registration', 'Every offer tracked in your portal'], cta: [['post-property.html', 'List your property free'], ['login.html?role=seller', 'Get a price opinion']] },
+      builder: { t: 'Primary sales: developer partnerships that sell launches.', l: ['Project launches and curated inventory', 'RERA-checked listings', 'Verified buyer leads', 'Site visits coordinated', 'End-to-end booking support'], cta: [['login.html?role=builder', 'Partner with us']] },
+      community: { t: 'An exclusive desk for your gated community.', l: ['Exclusive Rental Desk: listing, screening, onboarding', 'Exclusive Secondary Sales Desk for resident homes', 'Controlled, resident-friendly visits', 'Respect for residents, owners and RWAs', 'Property management for owners'], cta: [['#', 'Talk to us about a community desk']], wa: 'Hi Keetown Realty, I would like to discuss an exclusive rental / resale desk for our gated community.' },
+      company: { t: 'Relocate employees and find office space with one partner.', l: ['Employee relocation, door to door', 'Temporary stay and verified homes', 'Managed offices and leased floors', 'Company-leased housing and its management', 'One portal for HR to track every move'], cta: [['business.html', 'Keetown for Business'], ['login.html?role=company', 'Company login']] }
+    };
+    const tabs = $$('.svc2-tabs [data-c]'), list = $('#svcList'), title = $('#svcT'), cta = $('#svcCta');
+    function show(k, focus) {
+      const d = S[k]; tabs.forEach(b => { const on = b.dataset.c === k; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
+      title.textContent = d.t; list.innerHTML = d.l.map(x => `<li>${esc(x)}</li>`).join('');
+      cta.innerHTML = d.cta.map(([h, t], i) => `<a class="${i || d.search ? 'svc2-ln' : 'f-go svc2-go'}" href="${d.wa && !i ? KT.wa(d.wa) : h}"${d.wa && !i ? ' target="_blank" rel="noopener"' : ''}>${esc(t)}${i || d.search ? ' →' : ''}</a>`).join('');
+      f.hidden = !d.search; $('#svc2').classList.toggle('search', !!d.search);
+      if (d.search) { const r = f.querySelector(`.f-intent input[value="${d.search}"]`); r.checked = true; intent(); }
+      if (!reduce) $('#svcPanel').animate([{ opacity: .3, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.22,1,.36,1)' });
+    }
+    tabs.forEach((b, i) => { b.onclick = () => show(b.dataset.c); b.onkeydown = e => { const n = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (n) { e.preventDefault(); show(tabs[(i + n + tabs.length) % tabs.length].dataset.c, true); } }; });
+    show('tenant');
+  })();
+
   /* ---------------- hero: living isometric Hyderabad ---------------- */
   (function hero() {
     const cv = $('#city'); if (!cv || !H) return; const ctx = cv.getContext('2d');

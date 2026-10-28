@@ -24,6 +24,14 @@ python3 -m http.server 5173   # serve locally → http://localhost:5173
 | Team workspace (research, content, calendar, metrics, CRM) | `os/index.html` |
 | Brand + promo | `assets/brand/`, `promo/reel.html`, `promo/ads.html`, rendered files in `promo/out/` |
 
+## Keetown for Business (companies)
+- `business.html`: public page for MNCs, GCCs and startups (employee relocation, office space, company-leased housing).
+- Company / HR accounts (`role: company`) get their own portal: dashboard, employee moves board, relocation requests with packages, office-space requirements with shortlist and due diligence, billing with rent-allowance commitments.
+- When HR adds an employee, that employee's login is ready: they sign in with their own mobile + OTP, their profile is pre-filled from HR's request, and they are marked "Verified by employer" on the server.
+- Employees see homes near their office within the rent allowance, and can **lock** one. Flow: employee requests → HR approves or declines → Keetown confirms with the owner → Locked (stage "Lease signed"). Rent up to the allowance is paid by the company; anything above is shown as the employee's share before they lock. The server allows only one active lock per home (`/api/locks`).
+- Data: `keetown_relocations` and `keetown_offices` (`js/corp.js`), synced like tenancies. Staff mobiles can read and update every case.
+- Packages, fees and services live in `js/corp.js` (fees are placeholders until the rate card is final).
+
 ## Data flow
 `data/catalog.json` (brand, 17 localities, listings) → `build.py` → `js/data.js` + every generated page + `sitemap.xml` + `robots.txt`.
 **Never edit `js/data.js` or the generated folders by hand.** All listings are illustrative samples (`"sample": true` = generated); prices are indicative placeholders.
