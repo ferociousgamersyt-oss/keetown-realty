@@ -88,7 +88,7 @@ PIN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-
 
 def shell(*, title, desc, path, body, pre, cur='', jsonld=(), scripts=(), robots='index,follow', og_type='website', head=''):
     canon = f"{SITE}/{path}"
-    nav = [('properties.html', 'Properties'), ('localities.html', 'Localities'), ('management.html', 'Property management'), ('business.html', 'For business'), ('index.html#tools', 'Calculators'), ('post-property.html', 'Post property <b class="free">FREE</b>')]
+    nav = [('help.html', 'How we help'), ('properties.html', 'Properties'), ('localities.html', 'Localities'), ('management.html', 'Property management'), ('business.html', 'For business'), ('post-property.html', 'Post property <b class="free">FREE</b>')]
     cls = lambda h: ' class="cur"' if cur == h else ''
     links = ''.join(f'<a href="{pre}{h}"{cls(h)}>{t}</a>' for h, t in nav)
     ld = ''.join(f'<script type="application/ld+json">{json.dumps(j, ensure_ascii=False)}</script>' for j in jsonld)
@@ -451,14 +451,15 @@ def main():
     write('js/data.js', data_js())
     for p in PROPS: path, html_ = property_page(p); write(path, html_); pages.append(path)
     for l in LOCS: path, html_ = locality_page(l); write(path, html_); pages.append(path)
-    for fn in (listings_page, localities_index, post_page): path, html_ = fn(); write(path, html_); pages.append(path)
+    for fn in (listings_page, localities_index, post_page, help_hub): path, html_ = fn(); write(path, html_); pages.append(path)
+    for c in CLIENTS: path, html_ = client_page(c); write(path, html_); pages.append(path)
     combos = combo_pages(); indexable = set()
     for path, html_ in combos:
         write(path, html_); pages.append(path)
         if 'noindex' not in html_[:2000]: indexable.add(path)
     # remove pages for listings/localities that no longer exist
     keep = set(pages)
-    for d in ('property', 'localities', 'in'):
+    for d in ('property', 'localities', 'in', 'for'):
         for f in (ROOT / d).glob('*.html'):
             if f'{d}/{f.name}' not in keep: f.unlink()
     urls = ['', 'properties.html', 'localities.html', 'management.html', 'business.html', 'post-property.html'] + [p for p in pages if p not in ('properties.html', 'localities.html', 'post-property.html') and (not p.startswith('in/') or p in indexable)]
@@ -466,6 +467,57 @@ def main():
           ''.join(f'  <url><loc>{SITE}/{u}</loc><lastmod>{TODAY}</lastmod></url>\n' for u in urls) + '</urlset>\n')
     write('robots.txt', f"User-agent: *\nAllow: /\nDisallow: /os/\nDisallow: /portal.html\nDisallow: /promo/\n\nSitemap: {SITE}/sitemap.xml\n")
     print(f"built js/data.js, {len(PROPS)} property pages, {len(LOCS)} locality guides, {len(combos)} search landing pages ({len(indexable)} indexable), properties.html, localities.html, post-property.html, sitemap.xml ({len(urls)} urls), robots.txt")
+
+# ---------------------------------------------------------------- "how we help" pages (one per client type)
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location('clients', ROOT / 'data' / 'clients.py'); _cm = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_cm)
+CLIENTS = _cm.CLIENTS
+HELP_HEAD = '<link rel="stylesheet" href="{pre}css/help.css">'
+
+def _strip(t): return re.sub(r'<[^>]+>', '', t)
+
+def client_page(c):
+    pre, path = '../', f"for/{c['slug']}.html"
+    wa_text = f"Hi Keetown Realty, {c['who'].lower()}. Please help."
+    href = lambda h: wa(wa_text) if h == '#wa' else (h if h.startswith('#') else pre + h)
+    tgt = lambda h: ' target="_blank" rel="noopener"' if h == '#wa' else ''
+    pts = ''.join(f'<article class="hp-pt" data-fade><div data-vis="{v}"></div><h3>{e(t)}</h3><p>{e(d)}</p></article>' for v, t, d in c['points'])
+    steps = ''.join(f'<li class="hs" data-fade><span class="hs-n">{i}</span><div class="hs-vis" data-vis="{v}"></div><div class="hs-t"><h3>{e(t)}</h3><p>{e(d)}</p></div></li>' for i, (v, t, d) in enumerate(c['steps'], 1))
+    portal = ''.join(f'<li>{e(x)}</li>' for x in c['portal'])
+    faq = ''.join(f'<details><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in c['faqs'])
+    others = ''.join(f'<a class="hp-o" href="{o["slug"]}.html"><span data-vis="{o["vis"]}"></span><b>{e(o["label"])}</b></a>' for o in CLIENTS if o['slug'] != c['slug'])
+    c1, c2 = c['cta'], c['cta2']
+    body = f"""
+<section class="hp-hero"><div class="wrap hp-hero-in">
+  <div><nav class="hp-crumb"><a href="{pre}help.html">How we help</a> / {e(c['label'])}</nav>
+    <p class="eyebrow dark"><span class="dot"></span> For {e(c['label'].lower())}</p>
+    <h1 data-split>{c['title']}</h1><p class="lede" data-fade>{e(c['sub'])}</p>
+    <div class="hp-cta" data-fade><a class="btn btn-gold" href="{href(c1[0])}"{tgt(c1[0])}>{e(c1[1])}</a><a class="btn btn-line" href="{href(c2[0])}">{e(c2[1])} →</a></div></div>
+  <div class="hp-hero-vis" data-vis="{c['vis']}"></div>
+</div></section>
+<section class="hp-sec"><div class="wrap"><p class="eyebrow dark" data-fade>In 30 seconds</p><h2 data-split>What you get</h2><div class="hp-pts">{pts}</div></div></section>
+<section class="hp-sec tint"><div class="wrap"><p class="eyebrow dark" data-fade>Step by step</p><h2 data-split>How it works</h2>
+  <ol class="hsteps" id="hsteps">{steps}</ol></div></section>
+<section class="hp-sec"><div class="wrap hp-portal"><div data-fade><p class="eyebrow dark">Your portal</p><h2>Everything in one place</h2><ul class="hp-list">{portal}</ul>
+  <a class="btn btn-gold" href="{href(c1[0])}"{tgt(c1[0])}>{e(c1[1])}</a></div><div class="hp-portal-vis" data-vis="portal"></div></div></section>
+<section class="hp-sec tint"><div class="wrap hp-faq"><div><p class="eyebrow dark">Questions</p><h2>Simple answers</h2></div><div class="faq">{faq}</div></div></section>
+<section class="hp-band"><div class="wrap"><h2>Talk to a real person.</h2><p>Message us on WhatsApp or call {e(B['phoneDisplay'])}. We reply within working hours.</p>
+  <div class="hp-cta"><a class="btn btn-wa" href="{wa(wa_text)}" target="_blank" rel="noopener">{WA_SVG} WhatsApp us</a><a class="btn btn-ghost" href="tel:+{B['phone']}">Call {e(B['phoneDisplay'])}</a></div></div></section>
+<section class="hp-sec"><div class="wrap"><p class="eyebrow dark">Other ways we help</p><div class="hp-others">{others}</div></div></section>"""
+    title = f"{_strip(c['title'])} — Keetown Realty"
+    return path, shell(title=title, desc=c['sub'], path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
+
+def help_hub():
+    pre, path = '', 'help.html'
+    cards = ''.join(f'<a class="hc2" href="for/{c["slug"]}.html" data-fade><div class="hc2-vis" data-vis="{c["vis"]}"></div><div><p class="hc2-who">{e(c["who"])}</p><h3>{e(c["label"])}</h3><p>{e(c["sub"])}</p><span class="hc2-go">See how we help →</span></div></a>' for c in CLIENTS)
+    picks = ''.join(f'<a role="listitem" href="for/{c["slug"]}.html">{e(c["who"])}</a>' for c in CLIENTS)
+    body = f"""
+<section class="hp-hero hub"><div class="wrap"><p class="eyebrow dark"><span class="dot"></span> How we help</p>
+  <h1 data-split>One team for every <em>property need in Hyderabad.</em></h1>
+  <p class="lede" data-fade>Pick what describes you. Each page explains, step by step and in plain words, exactly what we do for you.</p>
+  <div class="hub-pick" data-fade role="list">{picks}</div></div></section>
+<section class="hp-sec"><div class="wrap hub-grid">{cards}</div></section>"""
+    return path, shell(title='How Keetown Realty helps — tenants, buyers, owners, sellers, builders, communities, companies', desc='See how Keetown Realty helps each kind of client in Hyderabad, step by step and in plain words.', path=path, body=body, pre=pre, cur='help.html', head=HELP_HEAD.format(pre=pre), scripts=['js/visuals.js', 'js/help.js'])
 
 # ---------------------------------------------------------------- public deploy folder
 PUBLIC_EXCLUDE = {'build.py', 'data', 'dist', 'BACKEND.md', 'README.md', '.claude', '.DS_Store', '.wrangler', 'node_modules', '.git', '.gitignore', 'functions', 'schema.sql', 'wrangler.toml', 'workers', 'brochure'}

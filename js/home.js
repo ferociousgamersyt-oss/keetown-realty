@@ -54,11 +54,12 @@
       community: { t: 'An exclusive desk for your gated community.', l: ['Exclusive Rental Desk: listing, screening, onboarding', 'Exclusive Secondary Sales Desk for resident homes', 'Controlled, resident-friendly visits', 'Respect for residents, owners and RWAs', 'Property management for owners'], cta: [['#', 'Talk to us about a community desk']], wa: 'Hi Keetown Realty, I would like to discuss an exclusive rental / resale desk for our gated community.' },
       company: { t: 'Relocate employees and find office space with one partner.', l: ['Employee relocation, door to door', 'Temporary stay and verified homes', 'Managed offices and leased floors', 'Company-leased housing and its management', 'One portal for HR to track every move'], cta: [['business.html', 'Keetown for Business'], ['login.html?role=company', 'Company login']] }
     };
+    const PAGE = { tenant: 'tenants', buyer: 'buyers', owner: 'owners', seller: 'sellers', builder: 'builders', community: 'communities', company: 'companies' };
     const tabs = $$('.svc2-tabs [data-c]'), list = $('#svcList'), title = $('#svcT'), cta = $('#svcCta');
     function show(k, focus) {
       const d = S[k]; tabs.forEach(b => { const on = b.dataset.c === k; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
       title.textContent = d.t; list.innerHTML = d.l.map(x => `<li>${esc(x)}</li>`).join('');
-      cta.innerHTML = d.cta.map(([h, t], i) => `<a class="${i || d.search ? 'svc2-ln' : 'f-go svc2-go'}" href="${d.wa && !i ? KT.wa(d.wa) : h}"${d.wa && !i ? ' target="_blank" rel="noopener"' : ''}>${esc(t)}${i || d.search ? ' →' : ''}</a>`).join('');
+      cta.innerHTML = d.cta.map(([h, t], i) => `<a class="${i || d.search ? 'svc2-ln' : 'f-go svc2-go'}" href="${d.wa && !i ? KT.wa(d.wa) : h}"${d.wa && !i ? ' target="_blank" rel="noopener"' : ''}>${esc(t)}${i || d.search ? ' →' : ''}</a>`).join('') + `<a class="svc2-ln" href="for/${PAGE[k]}.html">How it works, step by step →</a>`;
       f.hidden = !d.search; $('#svc2').classList.toggle('search', !!d.search);
       if (d.search) { const r = f.querySelector(`.f-intent input[value="${d.search}"]`); r.checked = true; intent(); }
       if (!reduce) $('#svcPanel').animate([{ opacity: .3, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.22,1,.36,1)' });
@@ -168,7 +169,13 @@
       <div><span class="lc2-n">${String(i + 1).padStart(2, '0')}</span><div class="lc2-name">${esc(l.name.replace(' / HITEC City', ''))}</div><div class="lc2-zone">${esc(l.zone)}</div></div>
       <div class="lc2-band"><small>Apartments · per sq.ft</small><b>₹${l.sale[0].toLocaleString('en-IN')} – ₹${l.sale[1].toLocaleString('en-IN')}</b><div class="lc2-bar"><i style="left:${(l.sale[0] - lo) / (hi - lo) * 100}%;width:${Math.max(3, (l.sale[1] - l.sale[0]) / (hi - lo) * 100)}%"></i></div><small>2BHK rent ₹${l.rent2[0]}k–${l.rent2[1]}k · yield ~${l.yield}%</small></div>
       <span class="lc2-go">Read the guide →</span></a>`).join('');
-    if (reduce || !hasGSAP || innerWidth < 1000) { rail.style.overflowX = 'auto'; rail.style.width = 'auto'; rail.style.scrollSnapType = 'x mandatory'; return; }
+    // no pinning: the page never stops; the rail is a swipe/drag carousel instead
+    rail.classList.add('free'); rail.style.overflowX = 'auto'; rail.style.width = 'auto'; rail.style.scrollSnapType = 'x proximity';
+    let down = false, sx = 0, sl = 0;
+    rail.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; down = true; sx = e.clientX; sl = rail.scrollLeft; rail.style.scrollSnapType = 'none'; });
+    addEventListener('pointermove', e => { if (down) rail.scrollLeft = sl - (e.clientX - sx); });
+    addEventListener('pointerup', () => { if (down) { down = false; rail.style.scrollSnapType = 'x proximity'; } });
+    return;
     gsap.to(rail, { x: () => -(rail.scrollWidth - innerWidth), ease: 'none', scrollTrigger: { trigger: '#locs', start: 'top top', end: () => '+=' + (rail.scrollWidth - innerWidth), pin: '.locs-pin', scrub: .8, anticipatePin: 1, invalidateOnRefresh: true } });
   })();
 

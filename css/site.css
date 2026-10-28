@@ -222,3 +222,51 @@ input[type=range]{width:100%;margin-top:8px;accent-color:var(--ink)}
 .motion [data-fade]{opacity:0;transform:translateY(28px)}
 .motion [data-split] .ln{display:block;overflow:hidden;padding-bottom:.06em}.motion [data-split] .ln>span{display:inline-block;transform:translateY(105%)}
 .pt-curtain{position:fixed;inset:0;z-index:500;background:#0b1a33;opacity:0;pointer-events:none;transition:opacity .38s cubic-bezier(.22,1,.36,1)}.pt-curtain.in{opacity:1}
+
+/* ---------- Keetown visuals (js/visuals.js) ---------- */
+.vis{display:block;width:100%;max-width:220px;aspect-ratio:4/3}
+.vis svg{width:100%;height:100%;overflow:visible}
+.vis .vbg{fill:#eef3fb}.vis .vl{fill:none;stroke:#1e4386;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.vis .vl.thick{stroke-width:4}
+.vis .vf{fill:#a9c4ee}.vis .va{fill:#3669b2}.vis .vw{fill:#fff}.vis .vck{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}.vis .vck.big{stroke:#1e4386;stroke-width:4}
+.vis .vt{font:700 13px Inter,sans-serif;fill:#1e4386}.vis .vtw{font:700 9.5px Inter,sans-serif;fill:#fff}.vis .vts{font:700 7.5px Inter,sans-serif;fill:#1e4386}
+.vis .vlw{stroke:#fff;stroke-width:2.4;stroke-linecap:round}.vis .vsig{fill:none;stroke:#3669b2;stroke-width:2.6;stroke-linecap:round}
+.vis .vring{fill:none;stroke:#1e4386;stroke-width:5;stroke-linecap:round}.vis .vstamp{fill:none;stroke:#3669b2;stroke-width:3}
+.vis .vwin rect{fill:#fff}.vis .vwin2 rect{fill:#dbe6f7}.vis .dash{stroke-dasharray:3 5}
+.dark-vis .vis .vbg,.vis.on-dark .vbg{fill:rgba(169,196,238,.12)}
+/* motion: start states only when motion is allowed, play when .on */
+.motion .vis .draw{stroke-dasharray:1;stroke-dashoffset:1}
+.motion .vis.on .draw{animation:vDraw 1.1s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+.motion .vis .pop,.motion .vis .rise,.motion .vis .drop,.motion .vis .grow,.motion .vis .slide-x,.motion .vis .coin,.motion .vis .split1,.motion .vis .split2,.motion .vis .fly,.motion .vis .stamp,.motion .vis .wave{opacity:0}
+.vis .pop,.vis .grow,.vis .rise,.vis .drop,.vis .vwin2 rect{transform-box:fill-box;transform-origin:center}
+.vis .grow{transform-origin:bottom}
+.motion .vis.on .pop{animation:vPop .6s cubic-bezier(.34,1.56,.64,1) forwards;animation-delay:var(--d,.5s)}
+.motion .vis.on .rise{animation:vRise .8s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+.motion .vis.on .drop{animation:vDrop .8s cubic-bezier(.34,1.4,.64,1) forwards;animation-delay:var(--d,.2s)}
+.motion .vis.on .grow{animation:vGrow .8s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+.motion .vis.on .slide-x{animation:vSlide 1s cubic-bezier(.22,1,.36,1) forwards,vBob 3.2s 1.2s ease-in-out infinite;animation-delay:var(--d,.1s),1.2s}
+.motion .vis.on .coin{animation:vCoin 2.6s .4s cubic-bezier(.45,0,.2,1) infinite}
+.motion .vis.on .split1{animation:vSplit1 .8s .5s cubic-bezier(.34,1.4,.64,1) forwards}.motion .vis.on .split2{animation:vSplit2 .8s .8s cubic-bezier(.34,1.4,.64,1) forwards}
+.motion .vis.on .fly{animation:vFly 2.8s .3s cubic-bezier(.45,0,.2,1) infinite}
+.motion .vis.on .stamp{animation:vStamp 1.4s .3s cubic-bezier(.45,0,.2,1) forwards}
+.motion .vis.on .wave{animation:vWave 1.8s ease-out infinite;animation-delay:var(--d,0s)}
+.motion .vis.on .swing{transform-box:fill-box;transform-origin:top center;animation:vSwing 3s ease-in-out infinite}
+.motion .vis.on .shake{transform-box:fill-box;transform-origin:top center;animation:vShake 2.4s .4s ease-in-out infinite}
+.motion .vis.on .spin-w{transform-box:fill-box;transform-origin:70% 30%;animation:vWrench 2.4s .4s ease-in-out infinite}
+.motion .vis.on .vwin2 rect{animation:vLight .5s ease forwards;animation-delay:var(--d,0s)}
+@keyframes vDraw{to{stroke-dashoffset:0}}
+@keyframes vPop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+@keyframes vRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes vDrop{from{opacity:0;transform:translateY(-22px)}to{opacity:1;transform:none}}
+@keyframes vGrow{from{opacity:0;transform:scaleY(0)}to{opacity:1;transform:scaleY(1)}}
+@keyframes vSlide{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes vBob{0%,100%{transform:none}50%{transform:translate(4px,-3px)}}
+@keyframes vCoin{0%{opacity:0;transform:none}15%{opacity:1}80%{opacity:1;transform:translateX(30px)}100%{opacity:0;transform:translateX(34px)}}
+@keyframes vSplit1{from{opacity:0;transform:translate(-30px,12px) scale(.4)}to{opacity:1;transform:none}}
+@keyframes vSplit2{from{opacity:0;transform:translate(-36px,-14px) scale(.4)}to{opacity:1;transform:none}}
+@keyframes vFly{0%{opacity:0;transform:none}10%{opacity:1}70%{opacity:1;transform:translate(70px,-34px)}100%{opacity:0;transform:translate(84px,-22px)}}
+@keyframes vStamp{0%{opacity:0;transform:translateY(-16px)}30%{opacity:1;transform:translateY(-16px)}55%{transform:translateY(22px)}75%,100%{opacity:1;transform:translateY(0)}}
+@keyframes vWave{0%{opacity:0}30%{opacity:1}100%{opacity:0;transform:translateX(6px)}}
+@keyframes vSwing{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes vShake{0%,60%,100%{transform:rotate(0)}65%{transform:rotate(-10deg)}75%{transform:rotate(9deg)}85%{transform:rotate(-5deg)}}
+@keyframes vWrench{0%,100%{transform:rotate(0)}50%{transform:rotate(-24deg)}}
+@keyframes vLight{to{fill:#3669b2}}

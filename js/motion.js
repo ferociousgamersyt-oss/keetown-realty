@@ -10,7 +10,8 @@ window.KTMotion = (function () {
 
   /* smooth scroll */
   let lenis = null;
-  if (!reduce && window.Lenis && !document.body.classList.contains('portal-body')) {
+  // Native scrolling everywhere: no scroll hijacking, so scrolling never lags or pauses. (Lenis kept off on purpose.)
+  if (false) {
     lenis = new Lenis({ lerp: .14, smoothWheel: true, wheelMultiplier: 1, syncTouch: false });   // light smoothing: follows the wheel closely, native touch scrolling
     if (window.gsap && window.ScrollTrigger) { lenis.on('scroll', ScrollTrigger.update); gsap.ticker.add(t => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
     else { const raf = t => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); }
